@@ -1,0 +1,17 @@
+{
+  "name": "DOC Bern – Ducati Owners Club",
+  "short_name": "DOC Bern",
+  "description": "Die offizielle App des Ducati Owners Club Bern",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
