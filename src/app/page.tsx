@@ -1,6 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
-import { events, newsletters, discounts, hostettlerInfo } from "@/data/content";
+import { events, newsletters as fallbackNewsletters, discounts, hostettlerInfo } from "@/data/content";
+import { getLatestNewsletters, type SanityNewsletter } from "../../sanity/lib/queries";
+import { urlFor } from "../../sanity/lib/image";
+
+export const revalidate = 60;
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("de-CH", {
@@ -30,13 +34,22 @@ const categoryTextColors: Record<string, string> = {
   update: "#ff9500",
 };
 
-export default function Home() {
+export default async function Home() {
+  let sanityNews: SanityNewsletter[] = [];
+  try {
+    sanityNews = await getLatestNewsletters(3);
+  } catch {
+    // fallback to static
+  }
+
+  const usingSanity = sanityNews.length > 0;
+  const latestNews = usingSanity ? sanityNews : fallbackNewsletters.slice(0, 2);
+
   const nextEvents = events
     .filter((e) => new Date(e.date) >= new Date())
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 3);
 
-  const latestNews = newsletters.slice(0, 2);
   const topDiscounts = discounts.slice(0, 2);
 
   return (
@@ -112,28 +125,49 @@ export default function Home() {
           </Link>
         </div>
         <div className="space-y-3">
-          {latestNews.map((item) => (
-            <Link key={item.id} href={`/newsletter#${item.id}`} className="glass-card p-4 block">
-              <div className="flex items-center gap-2 mb-1.5">
-                <span
-                  className="tag text-[10px]"
-                  style={{
-                    background: categoryColors[item.category],
-                    color: categoryTextColors[item.category],
-                  }}
-                >
-                  {categoryLabels[item.category]}
-                </span>
-                <span className="text-[10px]" style={{ color: "var(--text-secondary)" }}>
-                  {formatDate(item.date)}
-                </span>
-              </div>
-              <h3 className="font-semibold text-sm">{item.title}</h3>
-              <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--text-secondary)" }}>
-                {item.summary}
-              </p>
-            </Link>
-          ))}
+          {usingSanity
+            ? sanityNews.map((item) => {
+                const coverUrl = item.coverImage?.asset
+                  ? urlFor(item.coverImage).width(400).height(200).quality(80).url()
+                  : null;
+                return (
+                  <Link key={item._id} href="/newsletter" className="glass-card block overflow-hidden">
+                    {coverUrl && (
+                      <img src={coverUrl} alt={item.coverImage?.alt || item.title} className="w-full h-32 object-cover" loading="lazy" />
+                    )}
+                    <div className="p-4">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="tag text-[10px]" style={{ background: categoryColors[item.category], color: categoryTextColors[item.category] }}>
+                          {categoryLabels[item.category]}
+                        </span>
+                        <span className="text-[10px]" style={{ color: "var(--text-secondary)" }}>
+                          {formatDate(item.publishedAt)}
+                        </span>
+                      </div>
+                      <h3 className="font-semibold text-sm">{item.title}</h3>
+                      <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--text-secondary)" }}>
+                        {item.summary}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })
+            : (latestNews as typeof fallbackNewsletters).map((item) => (
+                <Link key={item.id} href={`/newsletter#${item.id}`} className="glass-card p-4 block">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="tag text-[10px]" style={{ background: categoryColors[item.category], color: categoryTextColors[item.category] }}>
+                      {categoryLabels[item.category]}
+                    </span>
+                    <span className="text-[10px]" style={{ color: "var(--text-secondary)" }}>
+                      {formatDate(item.date)}
+                    </span>
+                  </div>
+                  <h3 className="font-semibold text-sm">{item.title}</h3>
+                  <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--text-secondary)" }}>
+                    {item.summary}
+                  </p>
+                </Link>
+              ))}
         </div>
       </section>
 
