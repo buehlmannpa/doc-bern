@@ -1,5 +1,5 @@
 import { createPool } from "@vercel/postgres";
-import type { EventItem, NewsItem, EventLink, NewsCategory } from "./types";
+import type { EventItem, NewsItem, NewsCategory } from "./types";
 import { seedEvents, seedNews } from "./seed";
 
 // Verbindungs-String aus der ersten verfügbaren Umgebungsvariable.
