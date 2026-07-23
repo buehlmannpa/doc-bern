@@ -1,13 +1,35 @@
-import { sql } from "@vercel/postgres";
+import { createPool } from "@vercel/postgres";
 import type { EventItem, NewsItem, EventLink, NewsCategory } from "./types";
 import { seedEvents, seedNews } from "./seed";
 
-export function isDbConfigured(): boolean {
-  return Boolean(
+// Verbindungs-String aus der ersten verfügbaren Umgebungsvariable.
+// Vercel Postgres (Neon) setzt je nach Integration POSTGRES_URL oder DATABASE_URL.
+function connectionString(): string | undefined {
+  return (
     process.env.POSTGRES_URL ||
-      process.env.POSTGRES_PRISMA_URL ||
-      process.env.DATABASE_URL
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.DATABASE_URL_UNPOOLED
   );
+}
+
+export function isDbConfigured(): boolean {
+  return Boolean(connectionString());
+}
+
+let _pool: ReturnType<typeof createPool> | null = null;
+function getPool() {
+  if (!_pool) {
+    _pool = createPool({ connectionString: connectionString() });
+  }
+  return _pool;
+}
+
+// Tagged-Template-Wrapper, damit alle bestehenden sql`...`-Aufrufe funktionieren.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function sql(strings: TemplateStringsArray, ...values: any[]) {
+  return getPool().sql(strings, ...values);
 }
 
 let schemaReady = false;

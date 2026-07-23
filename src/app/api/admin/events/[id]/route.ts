@@ -8,26 +8,40 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  const body = (await request.json()) as Omit<EventItem, "id">;
-  const event = await updateEvent(id, {
-    title: body.title,
-    date: body.date,
-    time: body.time || "",
-    location: body.location || "",
-    description: body.description || "",
-    imageUrl: body.imageUrl ?? null,
-    links: body.links ?? [],
-    badge: body.badge ?? null,
-  });
-  return NextResponse.json({ event });
+  try {
+    const { id } = await params;
+    const body = (await request.json()) as Omit<EventItem, "id">;
+    const event = await updateEvent(id, {
+      title: body.title,
+      date: body.date,
+      time: body.time || "",
+      location: body.location || "",
+      description: body.description || "",
+      imageUrl: body.imageUrl ?? null,
+      links: body.links ?? [],
+      badge: body.badge ?? null,
+    });
+    return NextResponse.json({ event });
+  } catch (e) {
+    return NextResponse.json(
+      { error: `Speichern fehlgeschlagen: ${(e as Error).message}` },
+      { status: 500 }
+    );
+  }
 }
 
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  await deleteEvent(id);
-  return NextResponse.json({ ok: true });
+  try {
+    const { id } = await params;
+    await deleteEvent(id);
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return NextResponse.json(
+      { error: `Löschen fehlgeschlagen: ${(e as Error).message}` },
+      { status: 500 }
+    );
+  }
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { getEvents, getNews } from "@/lib/db";
+import { seedEvents, seedNews } from "@/lib/seed";
 import { board, boardIntro, hostettlerInfo } from "@/data/content";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,13 @@ const categoryTextColors: Record<string, string> = {
 };
 
 export default async function Home() {
-  const [allEvents, allNews] = await Promise.all([getEvents(), getNews()]);
+  let allEvents = seedEvents;
+  let allNews = seedNews;
+  try {
+    [allEvents, allNews] = await Promise.all([getEvents(), getNews()]);
+  } catch {
+    // Bei DB-Problemen Beispieldaten anzeigen, damit die Seite nie fehlschlägt.
+  }
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
