@@ -5,8 +5,8 @@ import Header from "@/components/Header";
 import ThemeProvider from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
-  title: "DOC Bern – Ducati Owners Club Bern",
-  description: "Die offizielle App des Ducati Owners Club Bern. Events, News, Rabatte und Partner.",
+  title: "DOC Bern – Ducati Official Club Bern",
+  description: "Die App des Ducati Official Club Bern. Events, News, Vorteile und Partner.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -33,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ThemeProvider>
           <Header />
-          <main className="max-w-lg mx-auto pt-16 pb-24 px-4">
+          <main className="max-w-lg mx-auto pt-[68px] pb-24 px-4">
             {children}
           </main>
           <BottomNav />

@@ -45,12 +45,20 @@ export default function SettingsPage() {
       <section className="glass-card p-5">
         <h2 className="font-bold text-base mb-1">Über DOC Bern</h2>
         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          Ducati Owners Club Bern – Die Community für Ducati-Enthusiasten in und um Bern.
+          Ducati Official Club Bern – Die Community für Ducati-Enthusiasten in und um Bern.
         </p>
         <div className="mt-3 pt-3 border-t border-black/5 text-xs" style={{ color: "var(--text-secondary)" }}>
           <p>Version 1.0.0</p>
         </div>
       </section>
+
+      <a
+        href="/admin"
+        className="glass-card p-4 flex items-center justify-between"
+      >
+        <span className="font-semibold text-sm">Admin-Bereich</span>
+        <span className="text-sm" style={{ color: "var(--text-secondary)" }}>Anmelden →</span>
+      </a>
     </div>
   );
 }
