@@ -171,7 +171,7 @@ export default function EventsAdminPage() {
           <Field label="Beschreibung">
             <textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} rows={4} className={inputCls} />
           </Field>
-          <Field label="Badge (optional, z.B. „Highlight")">
+          <Field label="Badge (optional, z.B. Highlight)">
             <input value={draft.badge || ""} onChange={(e) => setDraft({ ...draft, badge: e.target.value })} className={inputCls} />
           </Field>
           <Field label="Bild">
