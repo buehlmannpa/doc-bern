@@ -5,8 +5,14 @@ import { COOKIE_NAME, isValidSession } from "./lib/auth";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Login-Seite und Auth-API immer erlauben
-  if (pathname === "/admin/login" || pathname.startsWith("/api/auth")) {
+  // Login-Seite und Auth-API immer erlauben.
+  // Der Upload-Endpoint prüft die Anmeldung selbst (onBeforeGenerateToken) und
+  // muss zusätzlich den Abschluss-Callback von Vercel Blob (ohne Cookie) empfangen.
+  if (
+    pathname === "/admin/login" ||
+    pathname.startsWith("/api/auth") ||
+    pathname === "/api/admin/upload"
+  ) {
     return NextResponse.next();
   }
 

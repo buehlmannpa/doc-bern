@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { upload } from "@vercel/blob/client";
 
 export default function ImageField({
   value,
@@ -18,19 +19,22 @@ export default function ImageField({
     setUploading(true);
     setError("");
     try {
-      const form = new FormData();
-      form.append("file", file);
-      const res = await fetch("/api/admin/upload", { method: "POST", body: form });
-      const data = await res.json();
-      if (res.ok && data.url) {
-        onChange(data.url);
-      } else {
-        setError(data.error || "Upload fehlgeschlagen");
-      }
-    } catch {
-      setError("Upload fehlgeschlagen");
+      // Direkter Upload vom Browser zu Vercel Blob – umgeht das 4.5-MB-Limit
+      // der Server-Functions, sodass auch grosse Handy-Fotos funktionieren.
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/admin/upload",
+        contentType: file.type || undefined,
+      });
+      onChange(blob.url);
+    } catch (err) {
+      setError(
+        err instanceof Error ? `Upload fehlgeschlagen: ${err.message}` : "Upload fehlgeschlagen"
+      );
     } finally {
       setUploading(false);
+      // Input zurücksetzen, damit dieselbe Datei erneut gewählt werden kann
+      e.target.value = "";
     }
   }
 
