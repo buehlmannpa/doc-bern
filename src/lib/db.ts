@@ -455,7 +455,7 @@ export async function createPartner(input: Omit<PartnerItem, "id" | "sortOrder">
   const res = await sql`
     INSERT INTO partners (id, name, category, description, address, phone, email, website, discount, sort_order)
     VALUES (${id}, ${input.name}, ${input.category ?? ""}, ${input.description ?? ""}, ${input.address ?? null},
-            ${input.phone ?? null}, ${input.email ?? null}, ${input.website ?? null}, ${input.discount ?? null}, ${mx.rows[0].next})
+            ${input.phone ?? null}, ${input.email ?? null}, ${input.website ?? null}, ${input.discount ?? null}, ${mx[0].next})
     RETURNING *;
   `;
   return rowToPartner(res.rows[0]);
@@ -502,7 +502,7 @@ export async function createBoardMember(input: Omit<BoardMemberItem, "id" | "sor
   const { rows: mx } = await sql`SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM board_members;`;
   const res = await sql`
     INSERT INTO board_members (id, name, role, description, image_url, sort_order)
-    VALUES (${id}, ${input.name}, ${input.role ?? ""}, ${input.description ?? null}, ${input.imageUrl ?? null}, ${mx.rows[0].next})
+    VALUES (${id}, ${input.name}, ${input.role ?? ""}, ${input.description ?? null}, ${input.imageUrl ?? null}, ${mx[0].next})
     RETURNING *;
   `;
   return rowToBoard(res.rows[0]);
