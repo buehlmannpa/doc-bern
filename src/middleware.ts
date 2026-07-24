@@ -5,36 +5,36 @@ import { COOKIE_NAME, isValidSession } from "./lib/auth";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Login-Seite und Auth-API immer erlauben.
-  // Der Upload-Endpoint prüft die Anmeldung selbst (onBeforeGenerateToken) und
+  // Pfad als Header weitergeben, damit das Layout den Wartungsmodus korrekt
+  // (nur für Nicht-Admin-Seiten) anzeigen kann.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+
+  // Admin-Bereich absichern. Login und Upload sind ausgenommen:
+  // Login ist öffentlich, der Upload-Endpoint prüft die Anmeldung selbst und
   // muss zusätzlich den Abschluss-Callback von Vercel Blob (ohne Cookie) empfangen.
-  if (
-    pathname === "/admin/login" ||
-    pathname.startsWith("/api/auth") ||
-    pathname === "/api/admin/upload"
-  ) {
-    return NextResponse.next();
-  }
+  const needsAuth =
+    (pathname.startsWith("/admin") && pathname !== "/admin/login") ||
+    (pathname.startsWith("/api/admin") && pathname !== "/api/admin/upload");
 
-  const token = request.cookies.get(COOKIE_NAME)?.value;
-  const valid = await isValidSession(token);
-
-  if (!valid) {
-    // Admin-Seiten -> Login-Redirect
-    if (pathname.startsWith("/admin")) {
+  if (needsAuth) {
+    const valid = await isValidSession(request.cookies.get(COOKIE_NAME)?.value);
+    if (!valid) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
+      }
       const url = request.nextUrl.clone();
       url.pathname = "/admin/login";
       return NextResponse.redirect(url);
     }
-    // Schreibende Admin-APIs -> 401
-    if (pathname.startsWith("/api/admin")) {
-      return NextResponse.json({ error: "Nicht autorisiert" }, { status: 401 });
-    }
   }
 
-  return NextResponse.next();
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/admin/:path*"],
+  // Läuft auf allen Seiten/Routen ausser statischen Assets.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|logo.png|logo.svg|manifest.json|images/).*)",
+  ],
 };

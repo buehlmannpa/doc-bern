@@ -1,5 +1,5 @@
 import { sql } from "@vercel/postgres";
-import type { EventItem, NewsItem, NewsCategory } from "./types";
+import type { EventItem, NewsItem, NewsCategory, ActionItem } from "./types";
 import { seedEvents, seedNews } from "./seed";
 
 export function isDbConfigured(): boolean {
@@ -40,6 +40,23 @@ async function ensureSchema() {
       sort_order INTEGER NOT NULL DEFAULT 0,
       is_archived BOOLEAN NOT NULL DEFAULT false,
       published_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS actions (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      discount TEXT NOT NULL DEFAULT '',
+      period_label TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL DEFAULT ''
     );
   `;
 
@@ -212,4 +229,101 @@ export async function reorderNews(orderedIds: string[]): Promise<void> {
   for (let i = 0; i < orderedIds.length; i++) {
     await sql`UPDATE news SET sort_order = ${i} WHERE id = ${orderedIds[i]};`;
   }
+}
+
+// ---------- AKTIONEN (Rabattaktionen) ----------
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function rowToAction(r: any): ActionItem {
+  const d = r.created_at instanceof Date ? r.created_at : new Date(r.created_at);
+  return {
+    id: r.id,
+    title: r.title,
+    description: r.description || "",
+    discount: r.discount || "",
+    periodLabel: r.period_label || "",
+    createdAt: d.toISOString(),
+  };
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+export async function getActions(limit?: number): Promise<ActionItem[]> {
+  if (!isDbConfigured()) return [];
+  await ensureSchema();
+  const { rows } = limit
+    ? await sql`SELECT * FROM actions ORDER BY created_at DESC LIMIT ${limit};`
+    : await sql`SELECT * FROM actions ORDER BY created_at DESC;`;
+  return rows.map(rowToAction);
+}
+
+export async function getLatestAction(): Promise<ActionItem | null> {
+  const list = await getActions(1);
+  return list[0] ?? null;
+}
+
+export async function createAction(
+  input: Omit<ActionItem, "id" | "createdAt">
+): Promise<ActionItem> {
+  await ensureSchema();
+  const id = genId("act");
+  const res = await sql`
+    INSERT INTO actions (id, title, description, discount, period_label)
+    VALUES (${id}, ${input.title}, ${input.description ?? ""}, ${input.discount ?? ""}, ${input.periodLabel ?? ""})
+    RETURNING *;
+  `;
+  return rowToAction(res.rows[0]);
+}
+
+export async function updateAction(
+  id: string,
+  input: Omit<ActionItem, "id" | "createdAt">
+): Promise<ActionItem> {
+  await ensureSchema();
+  const res = await sql`
+    UPDATE actions SET
+      title = ${input.title},
+      description = ${input.description ?? ""},
+      discount = ${input.discount ?? ""},
+      period_label = ${input.periodLabel ?? ""}
+    WHERE id = ${id}
+    RETURNING *;
+  `;
+  if (res.rows.length === 0) {
+    throw new Error(`Aktion nicht gefunden (id=${id}).`);
+  }
+  return rowToAction(res.rows[0]);
+}
+
+export async function deleteAction(id: string): Promise<void> {
+  await ensureSchema();
+  await sql`DELETE FROM actions WHERE id = ${id};`;
+}
+
+// ---------- EINSTELLUNGEN (z.B. Maintenance Mode) ----------
+
+export async function getSetting(key: string): Promise<string | null> {
+  if (!isDbConfigured()) return null;
+  await ensureSchema();
+  const { rows } = await sql`SELECT value FROM app_settings WHERE key = ${key};`;
+  return rows.length ? rows[0].value : null;
+}
+
+export async function setSetting(key: string, value: string): Promise<void> {
+  await ensureSchema();
+  await sql`
+    INSERT INTO app_settings (key, value) VALUES (${key}, ${value})
+    ON CONFLICT (key) DO UPDATE SET value = ${value};
+  `;
+}
+
+export async function getMaintenance(): Promise<boolean> {
+  try {
+    return (await getSetting("maintenance")) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export async function setMaintenance(on: boolean): Promise<void> {
+  await setSetting("maintenance", on ? "true" : "false");
 }

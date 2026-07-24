@@ -1,8 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import Header from "@/components/Header";
 import ThemeProvider from "@/components/ThemeProvider";
+import MaintenanceScreen from "@/components/MaintenanceScreen";
+import { getMaintenance } from "@/lib/db";
 
 export const metadata: Metadata = {
   title: "DOC Bern – Ducati Official Club Bern",
@@ -24,7 +27,12 @@ export const viewport: Viewport = {
   themeColor: "#ffffff",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const pathname = (await headers()).get("x-pathname") || "";
+  const isAdmin = pathname.startsWith("/admin");
+  const maintenance = await getMaintenance();
+  const showMaintenance = maintenance && !isAdmin;
+
   return (
     <html lang="de">
       <head>
@@ -32,11 +40,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ThemeProvider>
-          <Header />
-          <main className="max-w-lg mx-auto pt-[68px] pb-24 px-4">
-            {children}
-          </main>
-          <BottomNav />
+          {showMaintenance ? (
+            <MaintenanceScreen />
+          ) : (
+            <>
+              <Header />
+              <main className="max-w-lg mx-auto pt-[68px] pb-24 px-4">
+                {children}
+              </main>
+              <BottomNav />
+            </>
+          )}
         </ThemeProvider>
       </body>
     </html>

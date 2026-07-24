@@ -12,6 +12,15 @@ export interface EventItem {
   badge?: string | null;
 }
 
+export interface ActionItem {
+  id: string;
+  title: string;
+  description: string;
+  discount: string; // z.B. "15%" oder "2 für 1"
+  periodLabel: string; // z.B. "Q3 2026" oder "Juli–September 2026"
+  createdAt: string; // ISO datetime
+}
+
 export type NewsCategory = "news" | "report" | "interview" | "update";
 
 export interface NewsItem {

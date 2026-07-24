@@ -1,10 +1,21 @@
-import { discounts, memberAction } from "@/data/content";
+import { discounts } from "@/data/content";
+import { getLatestAction } from "@/lib/db";
+import type { ActionItem } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("de-CH", { day: "numeric", month: "long", year: "numeric" });
 }
 
-export default function VorteilePage() {
+export default async function VorteilePage() {
+  let action: ActionItem | null = null;
+  try {
+    action = await getLatestAction();
+  } catch {
+    // keine aktuelle Aktion verfügbar
+  }
+
   const sorted = [...discounts].sort((a, b) => (b.percentage || 0) - (a.percentage || 0));
 
   return (
@@ -12,29 +23,29 @@ export default function VorteilePage() {
       <h1 className="text-2xl font-bold tracking-tight px-1">Vorteile</h1>
 
       {/* Aktuelle Aktion für Mitglieder */}
-      <section>
-        <h2 className="text-xs font-semibold uppercase tracking-wider mb-3 px-1" style={{ color: "var(--text-secondary)" }}>
-          Aktuelle Aktion für Mitglieder
-        </h2>
-        <article className="glass-card p-5 relative overflow-hidden" style={{ borderLeft: "4px solid var(--accent-hex)" }}>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="tag text-[10px] text-white" style={{ background: "var(--accent-hex)" }}>
-              {memberAction.quarter}
-            </span>
-            <span className="tag text-[10px]" style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}>
-              Quartals-Aktion
-            </span>
-          </div>
-          <h3 className="font-bold text-lg mb-1">{memberAction.title}</h3>
-          <p className="text-xs font-semibold mb-2" style={{ color: "var(--accent-hex)" }}>{memberAction.partner}</p>
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{memberAction.description}</p>
-          {memberAction.validUntil && (
-            <p className="text-[11px] mt-3" style={{ color: "var(--text-secondary)" }}>
-              Gültig bis {formatDate(memberAction.validUntil)}
-            </p>
-          )}
-        </article>
-      </section>
+      {action && (
+        <section>
+          <h2 className="text-xs font-semibold uppercase tracking-wider mb-3 px-1" style={{ color: "var(--text-secondary)" }}>
+            Aktuelle Aktion für Mitglieder
+          </h2>
+          <article className="glass-card p-5 relative overflow-hidden" style={{ borderLeft: "4px solid var(--accent-hex)" }}>
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              {action.periodLabel && (
+                <span className="tag text-[10px] text-white" style={{ background: "var(--accent-hex)" }}>
+                  {action.periodLabel}
+                </span>
+              )}
+              {action.discount && (
+                <span className="tag text-[10px]" style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}>
+                  {action.discount}
+                </span>
+              )}
+            </div>
+            <h3 className="font-bold text-lg mb-1">{action.title}</h3>
+            <p className="text-sm whitespace-pre-line" style={{ color: "var(--text-secondary)" }}>{action.description}</p>
+          </article>
+        </section>
+      )}
 
       {/* DOC-Rabatte für Mitglieder */}
       <section>

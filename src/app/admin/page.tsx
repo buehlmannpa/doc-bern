@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AdminNav from "@/components/AdminNav";
+import MaintenanceToggle from "@/components/MaintenanceToggle";
 import { isDbConfigured } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +51,22 @@ export default function AdminDashboard() {
           </div>
           <span className="font-semibold text-sm">News verwalten</span>
         </Link>
+
+        <Link href="/admin/actions" className="glass-card p-5 flex flex-col items-center text-center">
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center mb-2"
+            style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}
+          >
+            <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+          </div>
+          <span className="font-semibold text-sm">Rabattaktion</span>
+        </Link>
+      </div>
+
+      <div className="mt-4">
+        <MaintenanceToggle />
       </div>
     </div>
   );

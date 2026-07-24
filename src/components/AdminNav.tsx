@@ -17,6 +17,7 @@ export default function AdminNav() {
     { href: "/admin", label: "Übersicht" },
     { href: "/admin/events", label: "Events" },
     { href: "/admin/news", label: "News" },
+    { href: "/admin/actions", label: "Rabattaktion" },
   ];
 
   return (
