@@ -17,7 +17,20 @@ const emptyDraft: Draft = {
   category: "news",
   isArchived: false,
   publishedAt: new Date().toISOString(),
+  status: "published",
 };
+
+// ISO <-> datetime-local ("YYYY-MM-DDTHH:MM")
+function isoToLocal(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function localToIso(val: string): string {
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+}
 
 const categoryOptions: { value: NewsCategory; label: string }[] = [
   { value: "news", label: "Neuigkeit" },
@@ -142,6 +155,16 @@ export default function NewsAdminPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-semibold text-sm">{n.title}</h3>
+                    {n.status === "draft" && (
+                      <span className="tag text-[10px]" style={{ background: "rgba(142,142,147,0.18)", color: "var(--text-secondary)" }}>
+                        Entwurf
+                      </span>
+                    )}
+                    {n.status === "published" && new Date(n.publishedAt) > new Date() && (
+                      <span className="tag text-[10px]" style={{ background: "rgba(255,149,0,0.15)", color: "#ff9500" }}>
+                        Geplant
+                      </span>
+                    )}
                     {n.isArchived && (
                       <span className="tag text-[10px]" style={{ background: "rgba(255,59,48,0.1)", color: "#ff3b30" }}>
                         Ungültig
@@ -210,6 +233,38 @@ export default function NewsAdminPage() {
                 <span className="text-xs font-semibold block mb-1.5" style={{ color: "var(--text-secondary)" }}>Links</span>
                 <LinksField links={draft.links} onChange={(links: EventLink[]) => setDraft({ ...draft, links })} />
               </label>
+              {/* Sichtbarkeit / Planung */}
+              <div className="rounded-xl p-3" style={{ background: "var(--surface-subtle)" }}>
+                <span className="text-xs font-semibold block mb-2" style={{ color: "var(--text-secondary)" }}>Sichtbarkeit</span>
+                <div className="flex gap-1 p-1 rounded-xl mb-3" style={{ background: "var(--field-bg)" }}>
+                  {(["published", "draft"] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setDraft({ ...draft, status: s })}
+                      className="flex-1 py-1.5 rounded-lg text-xs font-semibold"
+                      style={{
+                        background: draft.status === s ? "var(--accent-hex)" : "transparent",
+                        color: draft.status === s ? "var(--accent-foreground)" : "var(--text-secondary)",
+                      }}
+                    >
+                      {s === "published" ? "Veröffentlicht" : "Entwurf"}
+                    </button>
+                  ))}
+                </div>
+                <label className="block">
+                  <span className="text-xs font-semibold block mb-1.5" style={{ color: "var(--text-secondary)" }}>
+                    Veröffentlichen am (in der Zukunft = geplant)
+                  </span>
+                  <input
+                    type="datetime-local"
+                    value={isoToLocal(draft.publishedAt)}
+                    onChange={(e) => setDraft({ ...draft, publishedAt: localToIso(e.target.value) })}
+                    className={inputCls}
+                  />
+                </label>
+              </div>
+
               <label className="flex items-center gap-3 py-2">
                 <input type="checkbox" checked={draft.isArchived} onChange={(e) => setDraft({ ...draft, isArchived: e.target.checked })} className="w-5 h-5" />
                 <span className="text-sm font-semibold">Als „Ungültig" archivieren</span>

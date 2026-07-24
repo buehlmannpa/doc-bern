@@ -17,6 +17,8 @@ const emptyDraft: Draft = {
   imageUrl: null,
   links: [],
   badge: "",
+  status: "published",
+  publishAt: new Date().toISOString(),
 };
 
 function formatDate(dateStr: string) {
@@ -27,6 +29,18 @@ function formatDate(dateStr: string) {
     month: "long",
     year: "numeric",
   });
+}
+
+// ISO <-> datetime-local ("YYYY-MM-DDTHH:MM")
+function isoToLocal(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function localToIso(val: string): string {
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
 }
 
 export default function EventsAdminPage() {
@@ -112,6 +126,16 @@ export default function EventsAdminPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-semibold text-sm">{ev.title}</h3>
+                      {ev.status === "draft" && (
+                        <span className="tag text-[10px]" style={{ background: "rgba(142,142,147,0.18)", color: "var(--text-secondary)" }}>
+                          Entwurf
+                        </span>
+                      )}
+                      {ev.status === "published" && new Date(ev.publishAt) > new Date() && (
+                        <span className="tag text-[10px]" style={{ background: "rgba(255,149,0,0.15)", color: "#ff9500" }}>
+                          Geplant
+                        </span>
+                      )}
                       {isPast && (
                         <span className="tag text-[10px]" style={{ background: "rgba(0,0,0,0.06)", color: "var(--text-secondary)" }}>
                           Vergangen
@@ -179,6 +203,35 @@ export default function EventsAdminPage() {
           <Field label="Links">
             <LinksField links={draft.links} onChange={(links: EventLink[]) => setDraft({ ...draft, links })} />
           </Field>
+
+          <div className="rounded-xl p-3" style={{ background: "var(--surface-subtle)" }}>
+            <span className="text-xs font-semibold block mb-2" style={{ color: "var(--text-secondary)" }}>Sichtbarkeit</span>
+            <div className="flex gap-1 p-1 rounded-xl mb-3" style={{ background: "var(--field-bg)" }}>
+              {(["published", "draft"] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setDraft({ ...draft, status: s })}
+                  className="flex-1 py-1.5 rounded-lg text-xs font-semibold"
+                  style={{
+                    background: draft.status === s ? "var(--accent-hex)" : "transparent",
+                    color: draft.status === s ? "var(--accent-foreground)" : "var(--text-secondary)",
+                  }}
+                >
+                  {s === "published" ? "Veröffentlicht" : "Entwurf"}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs font-semibold block mb-1.5" style={{ color: "var(--text-secondary)" }}>
+              Veröffentlichen am (in der Zukunft = geplant)
+            </span>
+            <input
+              type="datetime-local"
+              value={isoToLocal(draft.publishAt)}
+              onChange={(e) => setDraft({ ...draft, publishAt: localToIso(e.target.value) })}
+              className={inputCls}
+            />
+          </div>
         </EditorModal>
       )}
     </div>

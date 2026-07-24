@@ -37,6 +37,8 @@ export async function POST(request: Request) {
       imageUrl: body.imageUrl ?? null,
       links: body.links ?? [],
       badge: body.badge ?? null,
+      status: body.status === "draft" ? "draft" : "published",
+      publishAt: body.publishAt || new Date().toISOString(),
     });
     return NextResponse.json({ event });
   } catch (e) {
@@ -63,6 +65,8 @@ export async function PUT(request: Request) {
       imageUrl: body.imageUrl ?? null,
       links: body.links ?? [],
       badge: body.badge ?? null,
+      status: body.status === "draft" ? "draft" : "published",
+      publishAt: body.publishAt || new Date().toISOString(),
     });
     return NextResponse.json({ event });
   } catch (e) {

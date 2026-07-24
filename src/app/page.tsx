@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { getEvents, getNews } from "@/lib/db";
+import { getPublishedEvents, getPublishedNews } from "@/lib/db";
 import { seedEvents, seedNews } from "@/lib/seed";
 import { board, boardIntro, hostettlerInfo, membershipUrl } from "@/data/content";
 import BoardMemberCard from "@/components/BoardMemberCard";
@@ -26,7 +26,7 @@ export default async function Home() {
   let allEvents = seedEvents;
   let allNews = seedNews;
   try {
-    [allEvents, allNews] = await Promise.all([getEvents(), getNews()]);
+    [allEvents, allNews] = await Promise.all([getPublishedEvents(), getPublishedNews()]);
   } catch {
     // Bei DB-Problemen Beispieldaten anzeigen, damit die Seite nie fehlschlägt.
   }

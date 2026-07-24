@@ -1,5 +1,7 @@
 export type EventLink = { label: string; url: string };
 
+export type PublishStatus = "draft" | "published";
+
 export interface EventItem {
   id: string;
   title: string;
@@ -10,6 +12,9 @@ export interface EventItem {
   imageUrl?: string | null;
   links: EventLink[];
   badge?: string | null;
+  status: PublishStatus;
+  publishAt: string; // ISO datetime – ab wann öffentlich sichtbar
+  updatedBy?: string | null;
 }
 
 export interface ActionItem {
@@ -33,5 +38,7 @@ export interface NewsItem {
   category: NewsCategory;
   sortOrder: number;
   isArchived: boolean;
-  publishedAt: string; // ISO datetime
+  publishedAt: string; // ISO datetime – ab wann öffentlich sichtbar
+  status: PublishStatus;
+  updatedBy?: string | null;
 }

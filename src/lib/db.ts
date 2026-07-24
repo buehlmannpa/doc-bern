@@ -60,6 +60,13 @@ async function ensureSchema() {
     );
   `;
 
+  // Migrationen für bestehende Tabellen (Entwürfe/Planung, Audit)
+  await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'published';`;
+  await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS publish_at TIMESTAMPTZ NOT NULL DEFAULT now();`;
+  await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS updated_by TEXT;`;
+  await sql`ALTER TABLE news ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'published';`;
+  await sql`ALTER TABLE news ADD COLUMN IF NOT EXISTS updated_by TEXT;`;
+
   // Einmaliges Seeding, falls die Tabellen leer sind
   const ev = await sql`SELECT COUNT(*)::int AS c FROM events;`;
   if (ev.rows[0].c === 0) {
@@ -101,6 +108,9 @@ function rowToEvent(r: any): EventItem {
     imageUrl: r.image_url,
     links: Array.isArray(r.links) ? r.links : [],
     badge: r.badge,
+    status: (r.status as EventItem["status"]) || "published",
+    publishAt: (r.publish_at instanceof Date ? r.publish_at : new Date(r.publish_at || Date.now())).toISOString(),
+    updatedBy: r.updated_by ?? null,
   };
 }
 
@@ -117,12 +127,15 @@ function rowToNews(r: any): NewsItem {
     sortOrder: r.sort_order ?? 0,
     isArchived: Boolean(r.is_archived),
     publishedAt: d.toISOString(),
+    status: (r.status as NewsItem["status"]) || "published",
+    updatedBy: r.updated_by ?? null,
   };
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 // ---------- EVENTS ----------
 
+// Alle Events (Admin) – inkl. Entwürfe/geplante
 export async function getEvents(): Promise<EventItem[]> {
   if (!isDbConfigured()) return seedEvents;
   await ensureSchema();
@@ -130,17 +143,30 @@ export async function getEvents(): Promise<EventItem[]> {
   return rows.map(rowToEvent);
 }
 
+// Öffentlich sichtbare Events (veröffentlicht und Publikationszeitpunkt erreicht)
+export async function getPublishedEvents(): Promise<EventItem[]> {
+  if (!isDbConfigured()) return seedEvents;
+  await ensureSchema();
+  const { rows } = await sql`
+    SELECT * FROM events
+    WHERE status = 'published' AND publish_at <= now()
+    ORDER BY date ASC, time ASC;
+  `;
+  return rows.map(rowToEvent);
+}
+
 export async function createEvent(input: Omit<EventItem, "id">): Promise<EventItem> {
   await ensureSchema();
   const id = genId("evt");
-  await sql`
-    INSERT INTO events (id, title, date, time, location, description, image_url, links, badge)
+  const res = await sql`
+    INSERT INTO events (id, title, date, time, location, description, image_url, links, badge, status, publish_at, updated_by)
     VALUES (${id}, ${input.title}, ${input.date}, ${input.time}, ${input.location},
             ${input.description}, ${input.imageUrl ?? null},
-            ${JSON.stringify(input.links ?? [])}::jsonb, ${input.badge ?? null});
+            ${JSON.stringify(input.links ?? [])}::jsonb, ${input.badge ?? null},
+            ${input.status ?? "published"}, ${input.publishAt ?? new Date().toISOString()}, ${input.updatedBy ?? null})
+    RETURNING *;
   `;
-  const { rows } = await sql`SELECT * FROM events WHERE id = ${id};`;
-  return rowToEvent(rows[0]);
+  return rowToEvent(res.rows[0]);
 }
 
 export async function updateEvent(id: string, input: Omit<EventItem, "id">): Promise<EventItem> {
@@ -154,7 +180,10 @@ export async function updateEvent(id: string, input: Omit<EventItem, "id">): Pro
       description = ${input.description ?? ""},
       image_url = ${input.imageUrl ?? null},
       links = ${JSON.stringify(input.links ?? [])}::jsonb,
-      badge = ${input.badge ?? null}
+      badge = ${input.badge ?? null},
+      status = ${input.status ?? "published"},
+      publish_at = ${input.publishAt ?? new Date().toISOString()},
+      updated_by = ${input.updatedBy ?? null}
     WHERE id = ${id}
     RETURNING *;
   `;
@@ -171,10 +200,23 @@ export async function deleteEvent(id: string): Promise<void> {
 
 // ---------- NEWS ----------
 
+// Alle News (Admin) – inkl. Entwürfe/geplante
 export async function getNews(): Promise<NewsItem[]> {
   if (!isDbConfigured()) return seedNews;
   await ensureSchema();
   const { rows } = await sql`SELECT * FROM news ORDER BY sort_order ASC, published_at DESC;`;
+  return rows.map(rowToNews);
+}
+
+// Öffentlich sichtbare News (veröffentlicht und Publikationszeitpunkt erreicht)
+export async function getPublishedNews(): Promise<NewsItem[]> {
+  if (!isDbConfigured()) return seedNews;
+  await ensureSchema();
+  const { rows } = await sql`
+    SELECT * FROM news
+    WHERE status = 'published' AND published_at <= now()
+    ORDER BY sort_order ASC, published_at DESC;
+  `;
   return rows.map(rowToNews);
 }
 
@@ -185,14 +227,15 @@ export async function createNews(
   const id = genId("news");
   const { rows: minRows } = await sql`SELECT COALESCE(MIN(sort_order), 0) - 1 AS next FROM news;`;
   const sortOrder = minRows[0].next;
-  await sql`
-    INSERT INTO news (id, title, summary, content, image_url, links, category, sort_order, is_archived, published_at)
+  const res = await sql`
+    INSERT INTO news (id, title, summary, content, image_url, links, category, sort_order, is_archived, published_at, status, updated_by)
     VALUES (${id}, ${input.title}, ${input.summary}, ${input.content}, ${input.imageUrl ?? null},
             ${JSON.stringify(input.links ?? [])}::jsonb, ${input.category}, ${sortOrder},
-            ${input.isArchived ?? false}, ${input.publishedAt ?? new Date().toISOString()});
+            ${input.isArchived ?? false}, ${input.publishedAt ?? new Date().toISOString()},
+            ${input.status ?? "published"}, ${input.updatedBy ?? null})
+    RETURNING *;
   `;
-  const { rows } = await sql`SELECT * FROM news WHERE id = ${id};`;
-  return rowToNews(rows[0]);
+  return rowToNews(res.rows[0]);
 }
 
 export async function updateNews(
@@ -209,7 +252,9 @@ export async function updateNews(
       links = ${JSON.stringify(input.links ?? [])}::jsonb,
       category = ${input.category ?? "news"},
       is_archived = ${input.isArchived ?? false},
-      published_at = ${input.publishedAt ?? new Date().toISOString()}
+      published_at = ${input.publishedAt ?? new Date().toISOString()},
+      status = ${input.status ?? "published"},
+      updated_by = ${input.updatedBy ?? null}
     WHERE id = ${id}
     RETURNING *;
   `;

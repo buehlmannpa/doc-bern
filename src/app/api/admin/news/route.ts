@@ -44,6 +44,7 @@ export async function POST(request: Request) {
       category: body.category || "news",
       isArchived: body.isArchived ?? false,
       publishedAt: body.publishedAt || new Date().toISOString(),
+      status: body.status === "draft" ? "draft" : "published",
     });
     return NextResponse.json({ item });
   } catch (e) {
@@ -70,6 +71,7 @@ export async function PUT(request: Request) {
       category: body.category || "news",
       isArchived: body.isArchived ?? false,
       publishedAt: body.publishedAt,
+      status: body.status === "draft" ? "draft" : "published",
     });
     return NextResponse.json({ item });
   } catch (e) {

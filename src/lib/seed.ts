@@ -16,6 +16,8 @@ export const seedEvents: EventItem[] = [
     imageUrl: null,
     links: [],
     badge: "Highlight",
+    status: "published",
+    publishAt: "2026-01-01T00:00:00.000Z",
   },
   {
     id: "seed-2",
@@ -28,6 +30,8 @@ export const seedEvents: EventItem[] = [
     imageUrl: null,
     links: [],
     badge: null,
+    status: "published",
+    publishAt: "2026-01-01T00:00:00.000Z",
   },
   {
     id: "seed-3",
@@ -40,6 +44,8 @@ export const seedEvents: EventItem[] = [
     imageUrl: null,
     links: [],
     badge: null,
+    status: "published",
+    publishAt: "2026-01-01T00:00:00.000Z",
   },
 ];
 
@@ -57,6 +63,7 @@ export const seedNews: NewsItem[] = [
     sortOrder: 0,
     isArchived: false,
     publishedAt: "2026-07-01T10:00:00.000Z",
+    status: "published",
   },
   {
     id: "seed-n2",
@@ -70,5 +77,6 @@ export const seedNews: NewsItem[] = [
     sortOrder: 1,
     isArchived: false,
     publishedAt: "2026-06-15T10:00:00.000Z",
+    status: "published",
   },
 ];
