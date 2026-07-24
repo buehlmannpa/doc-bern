@@ -1,10 +1,30 @@
-import { partners, hostettlerInfo } from "@/data/content";
+import { partners as staticPartners, hostettlerInfo } from "@/data/content";
+import { getPartners } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export default function PartnersPage() {
+type PartnerLike = {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  discount?: string | null;
+};
+
+export default async function PartnersPage() {
   const dayNames = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
   const todayName = dayNames[new Date().getDay()];
+
+  let partners: PartnerLike[] = staticPartners;
+  try {
+    partners = await getPartners();
+  } catch {
+    // Fallback auf statische Partnerliste
+  }
 
   return (
     <div className="space-y-6">

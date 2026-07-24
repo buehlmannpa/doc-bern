@@ -26,6 +26,28 @@ export interface ActionItem {
   createdAt: string; // ISO datetime
 }
 
+export interface PartnerItem {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  discount?: string | null;
+  sortOrder: number;
+}
+
+export interface BoardMemberItem {
+  id: string;
+  name: string;
+  role: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  sortOrder: number;
+}
+
 export type NewsCategory = "news" | "report" | "interview" | "update";
 
 export interface NewsItem {

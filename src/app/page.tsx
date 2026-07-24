@@ -1,9 +1,11 @@
 import Link from "next/link";
 import Image from "next/image";
-import { getPublishedEvents, getPublishedNews } from "@/lib/db";
+import { getPublishedEvents, getPublishedNews, getBoard } from "@/lib/db";
 import { seedEvents, seedNews } from "@/lib/seed";
 import { board, boardIntro, hostettlerInfo, membershipUrl } from "@/data/content";
 import BoardMemberCard from "@/components/BoardMemberCard";
+
+type BoardListItem = { name: string; role: string; description?: string | null; imageUrl?: string | null };
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +27,13 @@ const categoryTextColors: Record<string, string> = {
 export default async function Home() {
   let allEvents = seedEvents;
   let allNews = seedNews;
+  let boardList: BoardListItem[] = board;
   try {
-    [allEvents, allNews] = await Promise.all([getPublishedEvents(), getPublishedNews()]);
+    [allEvents, allNews, boardList] = await Promise.all([
+      getPublishedEvents(),
+      getPublishedNews(),
+      getBoard(),
+    ]);
   } catch {
     // Bei DB-Problemen Beispieldaten anzeigen, damit die Seite nie fehlschlägt.
   }
@@ -142,7 +149,7 @@ export default async function Home() {
         <h2 className="text-lg font-bold tracking-tight mb-1 px-1">Vorstand stellt sich vor</h2>
         <p className="text-sm mb-3 px-1" style={{ color: "var(--text-secondary)" }}>{boardIntro}</p>
         <div className="grid grid-cols-2 gap-3">
-          {board.map((m, i) => (
+          {boardList.map((m, i) => (
             <BoardMemberCard key={i} member={m} />
           ))}
         </div>

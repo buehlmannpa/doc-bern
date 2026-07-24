@@ -18,6 +18,8 @@ export default function AdminNav() {
     { href: "/admin/events", label: "Events" },
     { href: "/admin/news", label: "News" },
     { href: "/admin/actions", label: "Rabattaktion" },
+    { href: "/admin/partners", label: "Partner" },
+    { href: "/admin/board", label: "Vorstand" },
   ];
 
   return (

@@ -1,6 +1,7 @@
 import { sql } from "@vercel/postgres";
-import type { EventItem, NewsItem, NewsCategory, ActionItem } from "./types";
+import type { EventItem, NewsItem, NewsCategory, ActionItem, PartnerItem, BoardMemberItem } from "./types";
 import { seedEvents, seedNews } from "./seed";
+import { partners as seedPartners, board as seedBoard } from "@/data/content";
 
 export function isDbConfigured(): boolean {
   return Boolean(
@@ -60,6 +61,31 @@ async function ensureSchema() {
     );
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS partners (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      address TEXT,
+      phone TEXT,
+      email TEXT,
+      website TEXT,
+      discount TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS board_members (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT '',
+      description TEXT,
+      image_url TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+  `;
+
   // Migrationen für bestehende Tabellen (Entwürfe/Planung, Audit)
   await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'published';`;
   await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS publish_at TIMESTAMPTZ NOT NULL DEFAULT now();`;
@@ -88,6 +114,28 @@ async function ensureSchema() {
       `;
     }
   }
+  const pt = await sql`SELECT COUNT(*)::int AS c FROM partners;`;
+  if (pt.rows[0].c === 0) {
+    for (let i = 0; i < seedPartners.length; i++) {
+      const p = seedPartners[i];
+      await sql`
+        INSERT INTO partners (id, name, category, description, address, phone, email, website, discount, sort_order)
+        VALUES (${p.id}, ${p.name}, ${p.category}, ${p.description}, ${p.address ?? null},
+                ${p.phone ?? null}, ${p.email ?? null}, ${p.website ?? null}, ${p.discount ?? null}, ${i});
+      `;
+    }
+  }
+  const bd = await sql`SELECT COUNT(*)::int AS c FROM board_members;`;
+  if (bd.rows[0].c === 0) {
+    for (let i = 0; i < seedBoard.length; i++) {
+      const b = seedBoard[i];
+      await sql`
+        INSERT INTO board_members (id, name, role, description, image_url, sort_order)
+        VALUES (${`brd_${i}`}, ${b.name}, ${b.role}, ${b.description ?? null}, ${b.imageUrl ?? null}, ${i});
+      `;
+    }
+  }
+
   schemaReady = true;
 }
 
@@ -342,6 +390,127 @@ export async function updateAction(
 export async function deleteAction(id: string): Promise<void> {
   await ensureSchema();
   await sql`DELETE FROM actions WHERE id = ${id};`;
+}
+
+// ---------- PARTNER ----------
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function rowToPartner(r: any): PartnerItem {
+  return {
+    id: r.id,
+    name: r.name,
+    category: r.category || "",
+    description: r.description || "",
+    address: r.address ?? null,
+    phone: r.phone ?? null,
+    email: r.email ?? null,
+    website: r.website ?? null,
+    discount: r.discount ?? null,
+    sortOrder: r.sort_order ?? 0,
+  };
+}
+function rowToBoard(r: any): BoardMemberItem {
+  return {
+    id: r.id,
+    name: r.name,
+    role: r.role || "",
+    description: r.description ?? null,
+    imageUrl: r.image_url ?? null,
+    sortOrder: r.sort_order ?? 0,
+  };
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+export async function getPartners(): Promise<PartnerItem[]> {
+  if (!isDbConfigured()) return seedPartners.map((p, i) => ({ ...p, sortOrder: i })) as PartnerItem[];
+  await ensureSchema();
+  const { rows } = await sql`SELECT * FROM partners ORDER BY sort_order ASC, name ASC;`;
+  return rows.map(rowToPartner);
+}
+
+export async function createPartner(input: Omit<PartnerItem, "id" | "sortOrder">): Promise<PartnerItem> {
+  await ensureSchema();
+  const id = genId("prt");
+  const { rows: mx } = await sql`SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM partners;`;
+  const res = await sql`
+    INSERT INTO partners (id, name, category, description, address, phone, email, website, discount, sort_order)
+    VALUES (${id}, ${input.name}, ${input.category ?? ""}, ${input.description ?? ""}, ${input.address ?? null},
+            ${input.phone ?? null}, ${input.email ?? null}, ${input.website ?? null}, ${input.discount ?? null}, ${mx.rows[0].next})
+    RETURNING *;
+  `;
+  return rowToPartner(res.rows[0]);
+}
+
+export async function updatePartner(id: string, input: Omit<PartnerItem, "id" | "sortOrder">): Promise<PartnerItem> {
+  await ensureSchema();
+  const res = await sql`
+    UPDATE partners SET
+      name = ${input.name}, category = ${input.category ?? ""}, description = ${input.description ?? ""},
+      address = ${input.address ?? null}, phone = ${input.phone ?? null}, email = ${input.email ?? null},
+      website = ${input.website ?? null}, discount = ${input.discount ?? null}
+    WHERE id = ${id}
+    RETURNING *;
+  `;
+  if (res.rows.length === 0) throw new Error(`Partner nicht gefunden (id=${id}).`);
+  return rowToPartner(res.rows[0]);
+}
+
+export async function deletePartner(id: string): Promise<void> {
+  await ensureSchema();
+  await sql`DELETE FROM partners WHERE id = ${id};`;
+}
+
+export async function reorderPartners(orderedIds: string[]): Promise<void> {
+  await ensureSchema();
+  for (let i = 0; i < orderedIds.length; i++) {
+    await sql`UPDATE partners SET sort_order = ${i} WHERE id = ${orderedIds[i]};`;
+  }
+}
+
+// ---------- VORSTAND ----------
+
+export async function getBoard(): Promise<BoardMemberItem[]> {
+  if (!isDbConfigured()) return seedBoard.map((b, i) => ({ id: `brd_${i}`, ...b, sortOrder: i })) as BoardMemberItem[];
+  await ensureSchema();
+  const { rows } = await sql`SELECT * FROM board_members ORDER BY sort_order ASC;`;
+  return rows.map(rowToBoard);
+}
+
+export async function createBoardMember(input: Omit<BoardMemberItem, "id" | "sortOrder">): Promise<BoardMemberItem> {
+  await ensureSchema();
+  const id = genId("brd");
+  const { rows: mx } = await sql`SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM board_members;`;
+  const res = await sql`
+    INSERT INTO board_members (id, name, role, description, image_url, sort_order)
+    VALUES (${id}, ${input.name}, ${input.role ?? ""}, ${input.description ?? null}, ${input.imageUrl ?? null}, ${mx.rows[0].next})
+    RETURNING *;
+  `;
+  return rowToBoard(res.rows[0]);
+}
+
+export async function updateBoardMember(id: string, input: Omit<BoardMemberItem, "id" | "sortOrder">): Promise<BoardMemberItem> {
+  await ensureSchema();
+  const res = await sql`
+    UPDATE board_members SET
+      name = ${input.name}, role = ${input.role ?? ""},
+      description = ${input.description ?? null}, image_url = ${input.imageUrl ?? null}
+    WHERE id = ${id}
+    RETURNING *;
+  `;
+  if (res.rows.length === 0) throw new Error(`Vorstandsmitglied nicht gefunden (id=${id}).`);
+  return rowToBoard(res.rows[0]);
+}
+
+export async function deleteBoardMember(id: string): Promise<void> {
+  await ensureSchema();
+  await sql`DELETE FROM board_members WHERE id = ${id};`;
+}
+
+export async function reorderBoard(orderedIds: string[]): Promise<void> {
+  await ensureSchema();
+  for (let i = 0; i < orderedIds.length; i++) {
+    await sql`UPDATE board_members SET sort_order = ${i} WHERE id = ${orderedIds[i]};`;
+  }
 }
 
 // ---------- EINSTELLUNGEN (z.B. Maintenance Mode) ----------

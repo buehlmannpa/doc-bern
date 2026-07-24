@@ -1,9 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import type { BoardMember } from "@/data/content";
 
-export default function BoardMemberCard({ member }: { member: BoardMember }) {
+type Member = {
+  name: string;
+  role: string;
+  description?: string | null;
+  imageUrl?: string | null;
+};
+
+export default function BoardMemberCard({ member }: { member: Member }) {
   const [imgError, setImgError] = useState(false);
   const showImage = member.imageUrl && !imgError;
 
