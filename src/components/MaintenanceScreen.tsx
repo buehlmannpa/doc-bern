@@ -2,7 +2,10 @@ import Image from "next/image";
 
 export default function MaintenanceScreen() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center text-center px-8">
+    <div
+      className="fixed inset-0 flex flex-col items-center justify-center text-center px-8 overflow-hidden"
+      style={{ background: "var(--bg-secondary)", height: "100dvh" }}
+    >
       <Image
         src="/logo.png"
         alt="DOC Bern"
