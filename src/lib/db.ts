@@ -128,20 +128,23 @@ export async function createEvent(input: Omit<EventItem, "id">): Promise<EventIt
 
 export async function updateEvent(id: string, input: Omit<EventItem, "id">): Promise<EventItem> {
   await ensureSchema();
-  await sql`
+  const res = await sql`
     UPDATE events SET
       title = ${input.title},
       date = ${input.date},
-      time = ${input.time},
-      location = ${input.location},
-      description = ${input.description},
+      time = ${input.time ?? ""},
+      location = ${input.location ?? ""},
+      description = ${input.description ?? ""},
       image_url = ${input.imageUrl ?? null},
       links = ${JSON.stringify(input.links ?? [])}::jsonb,
       badge = ${input.badge ?? null}
-    WHERE id = ${id};
+    WHERE id = ${id}
+    RETURNING *;
   `;
-  const { rows } = await sql`SELECT * FROM events WHERE id = ${id};`;
-  return rowToEvent(rows[0]);
+  if (res.rows.length === 0) {
+    throw new Error(`Event nicht gefunden (id=${id}).`);
+  }
+  return rowToEvent(res.rows[0]);
 }
 
 export async function deleteEvent(id: string): Promise<void> {
@@ -180,20 +183,23 @@ export async function updateNews(
   input: Omit<NewsItem, "id" | "sortOrder">
 ): Promise<NewsItem> {
   await ensureSchema();
-  await sql`
+  const res = await sql`
     UPDATE news SET
       title = ${input.title},
-      summary = ${input.summary},
-      content = ${input.content},
+      summary = ${input.summary ?? ""},
+      content = ${input.content ?? ""},
       image_url = ${input.imageUrl ?? null},
       links = ${JSON.stringify(input.links ?? [])}::jsonb,
-      category = ${input.category},
+      category = ${input.category ?? "news"},
       is_archived = ${input.isArchived ?? false},
-      published_at = ${input.publishedAt}
-    WHERE id = ${id};
+      published_at = ${input.publishedAt ?? new Date().toISOString()}
+    WHERE id = ${id}
+    RETURNING *;
   `;
-  const { rows } = await sql`SELECT * FROM news WHERE id = ${id};`;
-  return rowToNews(rows[0]);
+  if (res.rows.length === 0) {
+    throw new Error(`Newsbeitrag nicht gefunden (id=${id}).`);
+  }
+  return rowToNews(res.rows[0]);
 }
 
 export async function deleteNews(id: string): Promise<void> {
