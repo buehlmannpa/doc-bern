@@ -58,31 +58,6 @@ export default async function Home() {
         </p>
       </section>
 
-      {/* Mitglied werden */}
-      <a
-        href={membershipUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="glass-card p-4 flex items-center gap-4"
-        style={{ borderLeft: "4px solid var(--accent-hex)" }}
-      >
-        <div
-          className="flex-shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center"
-          style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}
-        >
-          <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-          </svg>
-        </div>
-        <div className="flex-1 min-w-0">
-          <h2 className="font-semibold text-sm">Mitglied werden</h2>
-          <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-            Jetzt dem DOC Bern beitreten – Anmeldung über das Ducati-Portal.
-          </p>
-        </div>
-        <span className="text-sm font-semibold" style={{ color: "var(--accent-hex)" }}>→</span>
-      </a>
-
       {/* Anstehende Events */}
       <section>
         <div className="flex items-center justify-between mb-3 px-1">
@@ -177,6 +152,31 @@ export default async function Home() {
           Zum Vertragshändler & Partnern →
         </Link>
       </section>
+
+      {/* Mitglied werden */}
+      <a
+        href={membershipUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="glass-card p-4 flex items-center gap-4"
+        style={{ borderLeft: "4px solid var(--accent-hex)" }}
+      >
+        <div
+          className="flex-shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center"
+          style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}
+        >
+          <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="font-semibold text-sm">Mitglied werden</h2>
+          <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+            Jetzt dem DOC Bern beitreten – Anmeldung über das Ducati-Portal.
+          </p>
+        </div>
+        <span className="text-sm font-semibold" style={{ color: "var(--accent-hex)" }}>→</span>
+      </a>
     </div>
   );
 }
