@@ -5,7 +5,7 @@ import AdminNav from "@/components/AdminNav";
 import ImageField from "@/components/ImageField";
 import type { BoardMemberItem } from "@/lib/types";
 
-type Draft = Omit<BoardMemberItem, "sortOrder"> & { id?: string };
+type Draft = Omit<BoardMemberItem, "id" | "sortOrder"> & { id?: string };
 
 const emptyDraft: Draft = { name: "", role: "", description: "", imageUrl: null };
 const inputCls = "w-full px-3 py-2.5 rounded-xl text-sm outline-none bg-black/[0.04]";

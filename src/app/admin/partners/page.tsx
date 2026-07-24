@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import AdminNav from "@/components/AdminNav";
 import type { PartnerItem } from "@/lib/types";
 
-type Draft = Omit<PartnerItem, "sortOrder"> & { id?: string };
+type Draft = Omit<PartnerItem, "id" | "sortOrder"> & { id?: string };
 
 const emptyDraft: Draft = {
   name: "", category: "", description: "", address: "", phone: "", email: "", website: "", discount: "",
@@ -63,7 +63,7 @@ export default function PartnersAdminPage() {
     <label className="block">
       <span className="text-xs font-semibold block mb-1.5" style={{ color: "var(--text-secondary)" }}>{label}</span>
       <input value={(draft?.[key] as string) || ""} placeholder={placeholder}
-        onChange={(e) => draft && setDraft({ ...draft, [key]: e.target.value })} className={inputCls} />
+        onChange={(e) => draft && setDraft({ ...draft, [key]: e.target.value } as Draft)} className={inputCls} />
     </label>
   );
 
