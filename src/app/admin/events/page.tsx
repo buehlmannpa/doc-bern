@@ -57,8 +57,7 @@ export default function EventsAdminPage() {
     setSaving(true);
     setError("");
     const isEdit = Boolean(draft.id);
-    const url = isEdit ? `/api/admin/events/${draft.id}` : "/api/admin/events";
-    const res = await fetch(url, {
+    const res = await fetch("/api/admin/events", {
       method: isEdit ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(draft),
@@ -75,7 +74,7 @@ export default function EventsAdminPage() {
 
   async function remove(id: string) {
     if (!confirm("Dieses Event wirklich löschen?")) return;
-    const res = await fetch(`/api/admin/events/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/admin/events?id=${encodeURIComponent(id)}`, { method: "DELETE" });
     if (res.ok) load();
   }
 

@@ -56,8 +56,7 @@ export default function NewsAdminPage() {
     setSaving(true);
     setError("");
     const isEdit = Boolean(draft.id);
-    const url = isEdit ? `/api/admin/news/${draft.id}` : "/api/admin/news";
-    const res = await fetch(url, {
+    const res = await fetch("/api/admin/news", {
       method: isEdit ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(draft),
@@ -74,7 +73,7 @@ export default function NewsAdminPage() {
 
   async function remove(id: string) {
     if (!confirm("Diesen Beitrag wirklich löschen?")) return;
-    const res = await fetch(`/api/admin/news/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/admin/news?id=${encodeURIComponent(id)}`, { method: "DELETE" });
     if (res.ok) load();
   }
 
@@ -84,8 +83,8 @@ export default function NewsAdminPage() {
     if (target < 0 || target >= next.length) return;
     [next[index], next[target]] = [next[target], next[index]];
     setItems(next);
-    await fetch("/api/admin/news/reorder", {
-      method: "POST",
+    await fetch("/api/admin/news", {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids: next.map((n) => n.id) }),
     });
