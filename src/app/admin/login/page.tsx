@@ -6,6 +6,7 @@ import Image from "next/image";
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,7 +19,7 @@ export default function AdminLoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
       });
       if (res.ok) {
         router.push("/admin");
@@ -40,16 +41,27 @@ export default function AdminLoginPage() {
         <Image src="/logo.png" alt="DOC Bern" width={64} height={64} className="mx-auto mb-4 rounded-2xl" />
         <h1 className="text-xl font-bold text-center mb-1">Admin-Bereich</h1>
         <p className="text-sm text-center mb-5" style={{ color: "var(--text-secondary)" }}>
-          Bitte mit dem Admin-Passwort anmelden
+          Bitte mit deinem Benutzernamen anmelden
         </p>
+        <input
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="Benutzername"
+          autoFocus
+          autoCapitalize="none"
+          autoComplete="username"
+          className="w-full px-4 py-3 rounded-xl text-sm mb-3 outline-none"
+          style={{ background: "var(--field-bg)" }}
+        />
         <input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Passwort"
-          autoFocus
+          autoComplete="current-password"
           className="w-full px-4 py-3 rounded-xl text-sm mb-3 outline-none"
-          style={{ background: "rgba(0,0,0,0.04)" }}
+          style={{ background: "var(--field-bg)" }}
         />
         {error && (
           <p className="text-xs mb-3 text-center" style={{ color: "#ff3b30" }}>

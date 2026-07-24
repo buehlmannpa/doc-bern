@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createEvent, getEvents, updateEvent, deleteEvent, isDbConfigured } from "@/lib/db";
+import { currentUsername } from "@/lib/session";
 import type { EventItem } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
       badge: body.badge ?? null,
       status: body.status === "draft" ? "draft" : "published",
       publishAt: body.publishAt || new Date().toISOString(),
+      updatedBy: await currentUsername(),
     });
     return NextResponse.json({ event });
   } catch (e) {
@@ -67,6 +69,7 @@ export async function PUT(request: Request) {
       badge: body.badge ?? null,
       status: body.status === "draft" ? "draft" : "published",
       publishAt: body.publishAt || new Date().toISOString(),
+      updatedBy: await currentUsername(),
     });
     return NextResponse.json({ event });
   } catch (e) {

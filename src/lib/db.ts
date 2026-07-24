@@ -2,6 +2,9 @@ import { sql } from "@vercel/postgres";
 import type { EventItem, NewsItem, NewsCategory, ActionItem, PartnerItem, BoardMemberItem } from "./types";
 import { seedEvents, seedNews } from "./seed";
 import { partners as seedPartners, board as seedBoard } from "@/data/content";
+import { hashPassword, type AdminRole } from "./auth";
+
+export type AdminUser = { username: string; name: string; role: AdminRole };
 
 export function isDbConfigured(): boolean {
   return Boolean(
@@ -85,6 +88,15 @@ async function ensureSchema() {
       sort_order INTEGER NOT NULL DEFAULT 0
     );
   `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS admin_users (
+      username TEXT PRIMARY KEY,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'admin',
+      name TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `;
 
   // Migrationen für bestehende Tabellen (Entwürfe/Planung, Audit)
   await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'published';`;
@@ -134,6 +146,14 @@ async function ensureSchema() {
         VALUES (${`brd_${i}`}, ${b.name}, ${b.role}, ${b.description ?? null}, ${b.imageUrl ?? null}, ${i});
       `;
     }
+  }
+
+  // Super-Admins patrick & luca initial mit dem bisherigen Admin-Passwort anlegen
+  const au = await sql`SELECT COUNT(*)::int AS c FROM admin_users;`;
+  if (au.rows[0].c === 0 && process.env.ADMIN_PASSWORD) {
+    const h = await hashPassword(process.env.ADMIN_PASSWORD);
+    await sql`INSERT INTO admin_users (username, password_hash, role, name) VALUES ('patrick', ${h}, 'superadmin', 'Patrick');`;
+    await sql`INSERT INTO admin_users (username, password_hash, role, name) VALUES ('luca', ${h}, 'superadmin', 'Luca');`;
   }
 
   schemaReady = true;
@@ -511,6 +531,74 @@ export async function reorderBoard(orderedIds: string[]): Promise<void> {
   for (let i = 0; i < orderedIds.length; i++) {
     await sql`UPDATE board_members SET sort_order = ${i} WHERE id = ${orderedIds[i]};`;
   }
+}
+
+// ---------- ADMIN-BENUTZER ----------
+
+export async function verifyLogin(username: string, password: string): Promise<AdminUser | null> {
+  if (!isDbConfigured()) return null;
+  await ensureSchema();
+  const { rows } = await sql`SELECT * FROM admin_users WHERE username = ${username};`;
+  if (rows.length === 0) return null;
+  const h = await hashPassword(password);
+  if (h !== rows[0].password_hash) return null;
+  return { username: rows[0].username, name: rows[0].name || "", role: rows[0].role as AdminRole };
+}
+
+export async function getAdminUsers(): Promise<AdminUser[]> {
+  await ensureSchema();
+  const { rows } = await sql`SELECT username, name, role FROM admin_users ORDER BY role DESC, username ASC;`;
+  return rows.map((r) => ({ username: r.username, name: r.name || "", role: r.role as AdminRole }));
+}
+
+export async function getAdminRole(username: string): Promise<AdminRole | null> {
+  if (!isDbConfigured()) return null;
+  await ensureSchema();
+  const { rows } = await sql`SELECT role FROM admin_users WHERE username = ${username};`;
+  return rows.length ? (rows[0].role as AdminRole) : null;
+}
+
+export async function createAdminUser(input: {
+  username: string;
+  name: string;
+  role: AdminRole;
+  password: string;
+}): Promise<void> {
+  await ensureSchema();
+  const exists = await sql`SELECT 1 FROM admin_users WHERE username = ${input.username};`;
+  if (exists.rows.length > 0) throw new Error("Benutzername bereits vergeben.");
+  const h = await hashPassword(input.password);
+  await sql`
+    INSERT INTO admin_users (username, password_hash, role, name)
+    VALUES (${input.username}, ${h}, ${input.role}, ${input.name});
+  `;
+}
+
+export async function updateAdminUser(
+  username: string,
+  input: { name?: string; role?: AdminRole; password?: string }
+): Promise<void> {
+  await ensureSchema();
+  if (input.name !== undefined) {
+    await sql`UPDATE admin_users SET name = ${input.name} WHERE username = ${username};`;
+  }
+  if (input.role !== undefined) {
+    await sql`UPDATE admin_users SET role = ${input.role} WHERE username = ${username};`;
+  }
+  if (input.password) {
+    const h = await hashPassword(input.password);
+    await sql`UPDATE admin_users SET password_hash = ${h} WHERE username = ${username};`;
+  }
+}
+
+export async function deleteAdminUser(username: string): Promise<void> {
+  await ensureSchema();
+  const sa = await sql`SELECT COUNT(*)::int AS c FROM admin_users WHERE role = 'superadmin';`;
+  const target = await sql`SELECT role FROM admin_users WHERE username = ${username};`;
+  if (target.rows.length && target.rows[0].role === "superadmin" && sa.rows[0].c <= 1) {
+    throw new Error("Der letzte Super-Admin kann nicht gelöscht werden.");
+  }
+  await sql`DELETE FROM admin_users WHERE username = ${username};`;
 }
 
 // ---------- EINSTELLUNGEN (z.B. Maintenance Mode) ----------

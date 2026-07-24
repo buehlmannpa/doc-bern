@@ -145,6 +145,11 @@ export default function EventsAdminPage() {
                     <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
                       {formatDate(ev.date)} · {ev.time} · {ev.location}
                     </p>
+                    {ev.updatedBy && (
+                      <p className="text-[10px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
+                        zuletzt bearbeitet von {ev.updatedBy}
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
                     <button

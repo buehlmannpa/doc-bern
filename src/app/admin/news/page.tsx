@@ -174,6 +174,11 @@ export default function NewsAdminPage() {
                   <p className="text-xs mt-0.5 line-clamp-1" style={{ color: "var(--text-secondary)" }}>
                     {n.summary}
                   </p>
+                  {n.updatedBy && (
+                    <p className="text-[10px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
+                      zuletzt bearbeitet von {n.updatedBy}
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col gap-1 flex-shrink-0">
                   <button

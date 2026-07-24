@@ -45,6 +45,7 @@ export async function POST(request: Request) {
       isArchived: body.isArchived ?? false,
       publishedAt: body.publishedAt || new Date().toISOString(),
       status: body.status === "draft" ? "draft" : "published",
+      updatedBy: await currentUsername(),
     });
     return NextResponse.json({ item });
   } catch (e) {
@@ -72,6 +73,7 @@ export async function PUT(request: Request) {
       isArchived: body.isArchived ?? false,
       publishedAt: body.publishedAt,
       status: body.status === "draft" ? "draft" : "published",
+      updatedBy: await currentUsername(),
     });
     return NextResponse.json({ item });
   } catch (e) {

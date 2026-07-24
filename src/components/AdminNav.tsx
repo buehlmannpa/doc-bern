@@ -2,10 +2,21 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+
+type Me = { username: string; name: string; role: "superadmin" | "admin" } | null;
 
 export default function AdminNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const [me, setMe] = useState<Me>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/me")
+      .then((r) => r.json())
+      .then((d) => setMe(d.user ?? null))
+      .catch(() => setMe(null));
+  }, []);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -20,33 +31,42 @@ export default function AdminNav() {
     { href: "/admin/actions", label: "Rabattaktion" },
     { href: "/admin/partners", label: "Partner" },
     { href: "/admin/board", label: "Vorstand" },
+    ...(me?.role === "superadmin" ? [{ href: "/admin/users", label: "Benutzer" }] : []),
   ];
 
   return (
-    <div className="glass-card p-2 flex items-center gap-1 mb-5 flex-wrap">
-      {links.map((l) => {
-        const active = pathname === l.href;
-        return (
-          <Link
-            key={l.href}
-            href={l.href}
-            className="px-3 py-1.5 rounded-xl text-sm font-semibold transition-all"
-            style={{
-              background: active ? "var(--accent-hex)" : "transparent",
-              color: active ? "var(--accent-foreground)" : "var(--text-secondary)",
-            }}
-          >
-            {l.label}
-          </Link>
-        );
-      })}
-      <button
-        onClick={logout}
-        className="ml-auto px-3 py-1.5 rounded-xl text-sm font-semibold"
-        style={{ color: "#ff3b30" }}
-      >
-        Abmelden
-      </button>
+    <div className="mb-5">
+      <div className="glass-card p-2 flex items-center gap-1 flex-wrap">
+        {links.map((l) => {
+          const active = pathname === l.href;
+          return (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="px-3 py-1.5 rounded-xl text-sm font-semibold transition-all"
+              style={{
+                background: active ? "var(--accent-hex)" : "transparent",
+                color: active ? "var(--accent-foreground)" : "var(--text-secondary)",
+              }}
+            >
+              {l.label}
+            </Link>
+          );
+        })}
+        <button
+          onClick={logout}
+          className="ml-auto px-3 py-1.5 rounded-xl text-sm font-semibold"
+          style={{ color: "#ff3b30" }}
+        >
+          Abmelden
+        </button>
+      </div>
+      {me && (
+        <p className="text-[11px] mt-1.5 px-2" style={{ color: "var(--text-secondary)" }}>
+          Angemeldet als <strong>{me.name || me.username}</strong>
+          {me.role === "superadmin" ? " · Super-Admin" : ""}
+        </p>
+      )}
     </div>
   );
 }
