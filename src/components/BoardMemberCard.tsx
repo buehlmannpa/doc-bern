@@ -18,7 +18,7 @@ export default function BoardMemberCard({ member }: { member: Member }) {
       {showImage ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={member.imageUrl}
+          src={member.imageUrl ?? undefined}
           alt={member.name}
           className="w-16 h-16 rounded-full object-cover mb-2"
           onError={() => setImgError(true)}
