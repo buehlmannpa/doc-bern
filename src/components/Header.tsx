@@ -9,7 +9,7 @@ export default function Header({ title }: { title?: string }) {
       <div className="max-w-lg mx-auto flex items-center justify-between h-14 px-4">
         <Link href="/" className="flex items-center gap-2.5">
           <Image
-            src="/logo.svg"
+            src="/logo.png"
             alt="DOC Bern"
             width={36}
             height={36}

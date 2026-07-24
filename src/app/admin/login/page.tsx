@@ -37,7 +37,7 @@ export default function AdminLoginPage() {
   return (
     <div className="min-h-[70vh] flex items-center justify-center">
       <form onSubmit={submit} className="glass-card p-6 w-full max-w-sm">
-        <Image src="/logo.svg" alt="DOC Bern" width={64} height={64} className="mx-auto mb-4 rounded-2xl" />
+        <Image src="/logo.png" alt="DOC Bern" width={64} height={64} className="mx-auto mb-4 rounded-2xl" />
         <h1 className="text-xl font-bold text-center mb-1">Admin-Bereich</h1>
         <p className="text-sm text-center mb-5" style={{ color: "var(--text-secondary)" }}>
           Bitte mit dem Admin-Passwort anmelden

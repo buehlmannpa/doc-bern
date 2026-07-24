@@ -3,6 +3,7 @@ import Image from "next/image";
 import { getEvents, getNews } from "@/lib/db";
 import { seedEvents, seedNews } from "@/lib/seed";
 import { board, boardIntro, hostettlerInfo } from "@/data/content";
+import BoardMemberCard from "@/components/BoardMemberCard";
 
 export const dynamic = "force-dynamic";
 
@@ -35,15 +36,15 @@ export default async function Home() {
   const nextEvents = allEvents
     .filter((e) => new Date(e.date) >= today)
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 3);
+    .slice(0, 2);
 
-  const latestNews = allNews.filter((n) => !n.isArchived).slice(0, 3);
+  const latestNews = allNews.filter((n) => !n.isArchived).slice(0, 2);
 
   return (
     <div className="space-y-6">
       {/* Hero */}
       <section className="glass-card px-6 pt-5 pb-6 text-center">
-        <Image src="/logo.svg" alt="DOC Bern" width={96} height={96} className="mx-auto mb-3 rounded-2xl" priority />
+        <Image src="/logo.png" alt="DOC Bern" width={96} height={96} className="mx-auto mb-3 rounded-2xl" priority />
         <h1 className="text-xl font-bold tracking-tight mb-1">Ducati Official Club Bern</h1>
         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
           Willkommen auf der Seite vom DOC-Bern.
@@ -117,21 +118,7 @@ export default async function Home() {
         <p className="text-sm mb-3 px-1" style={{ color: "var(--text-secondary)" }}>{boardIntro}</p>
         <div className="grid grid-cols-2 gap-3">
           {board.map((m, i) => (
-            <div key={i} className="glass-card p-4 flex flex-col items-center text-center">
-              {m.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={m.imageUrl} alt={m.name} className="w-16 h-16 rounded-full object-cover mb-2" />
-              ) : (
-                <div className="w-16 h-16 rounded-full mb-2 flex items-center justify-center" style={{ background: "rgba(var(--accent), 0.1)" }}>
-                  <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="var(--accent-hex)" strokeWidth={1.6}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-              )}
-              <span className="text-xs font-semibold" style={{ color: "var(--accent-hex)" }}>{m.role}</span>
-              <span className="text-sm font-semibold">{m.name}</span>
-              {m.description && <p className="text-[11px] mt-1" style={{ color: "var(--text-secondary)" }}>{m.description}</p>}
-            </div>
+            <BoardMemberCard key={i} member={m} />
           ))}
         </div>
       </section>

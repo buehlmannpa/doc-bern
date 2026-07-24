@@ -147,14 +147,13 @@ export const discounts: Discount[] = [
 ];
 
 // ---------- Vorstand ----------
-// Bitte Namen, Rollen und optional Bilder anpassen.
+// Bilder als PNG im Repo unter public/images/ ablegen (Dateiname wie unten).
 export const board: BoardMember[] = [
-  { name: "N.N.", role: "Präsident" },
-  { name: "N.N.", role: "Vizepräsident" },
-  { name: "N.N.", role: "Kassier/in" },
-  { name: "N.N.", role: "Aktuar/in" },
-  { name: "N.N.", role: "Eventverantwortliche/r" },
-  { name: "N.N.", role: "Beisitzer/in" },
+  { name: "Luca Assante", role: "Präsident", imageUrl: "/images/la.png" },
+  { name: "Kevin Carrara", role: "Kassierer", imageUrl: "/images/kc.png" },
+  { name: "Patrick Bühlmann", role: "Social & Technik", imageUrl: "/images/pb.png" },
+  { name: "Sven Bingeli", role: "Beistand", imageUrl: "/images/sb.png" },
+  { name: "Diego B", role: "Beistand", imageUrl: "/images/db.png" },
 ];
 
 export const boardIntro =
