@@ -158,3 +158,8 @@ export const board: BoardMember[] = [
 
 export const boardIntro =
   "Der Vorstand des Ducati Official Club Bern engagiert sich ehrenamtlich für ein aktives Clubleben, gemeinsame Ausfahrten und die Interessen der Mitglieder.";
+
+// ---------- Mitgliedschaft ----------
+// Anmeldung läuft aktuell über das offizielle Ducati-Portal.
+// Bitte bei Bedarf die exakte URL des DOC-Bern / Ducati Official Club anpassen.
+export const membershipUrl = "https://www.ducati.com/ch/de/dealers";

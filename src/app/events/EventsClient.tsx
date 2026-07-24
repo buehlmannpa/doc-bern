@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { EventItem } from "@/lib/types";
+import AddToCalendar from "@/components/AddToCalendar";
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("de-CH", {
@@ -136,6 +137,8 @@ function EventCard({
           <p className="text-sm leading-relaxed pt-4 whitespace-pre-line" style={{ color: "var(--text-secondary)" }}>
             {event.description}
           </p>
+
+          <AddToCalendar event={event} />
 
           {event.links.length > 0 && (
             <div className="mt-4 space-y-2">
