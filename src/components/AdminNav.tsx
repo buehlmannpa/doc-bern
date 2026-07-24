@@ -31,7 +31,7 @@ export default function AdminNav() {
             className="px-3 py-1.5 rounded-xl text-sm font-semibold transition-all"
             style={{
               background: active ? "var(--accent-hex)" : "transparent",
-              color: active ? "#fff" : "var(--text-secondary)",
+              color: active ? "var(--accent-foreground)" : "var(--text-secondary)",
             }}
           >
             {l.label}

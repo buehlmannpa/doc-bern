@@ -21,11 +21,22 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: "cover",
-  themeColor: "#ffffff",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f5f5f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
 };
+
+// Setzt Theme + Akzentfarbe synchron vor dem ersten Paint (verhindert Flackern).
+const noFlashScript = `(function(){try{
+var accents=[["227, 6, 19","#e30613","#ffffff"],["30, 30, 30","#1e1e1e","#ffffff"],["120, 120, 128","#787880","#ffffff"],["255, 204, 0","#ffcc00","#1d1d1f"],["0, 122, 255","#007aff","#ffffff"]];
+var i=parseInt(localStorage.getItem('doc-bern-accent')||'0',10)||0;var c=accents[i]||accents[0];
+var r=document.documentElement;r.style.setProperty('--accent',c[0]);r.style.setProperty('--accent-hex',c[1]);r.style.setProperty('--accent-foreground',c[2]);
+var m=localStorage.getItem('doc-bern-theme')||'auto';
+var dark=m==='dark'||(m==='auto'&&window.matchMedia('(prefers-color-scheme: dark)').matches);
+r.setAttribute('data-theme',dark?'dark':'light');
+}catch(e){}})();`;
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = (await headers()).get("x-pathname") || "";
@@ -37,6 +48,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="de">
       <head>
         <link rel="apple-touch-icon" href="/logo.png" />
+        <script dangerouslySetInnerHTML={{ __html: noFlashScript }} />
       </head>
       <body>
         <ThemeProvider>

@@ -89,7 +89,7 @@ export default function EventsAdminPage() {
         <button
           onClick={() => { setDraft({ ...emptyDraft }); setError(""); }}
           className="px-4 py-2 rounded-xl text-sm font-semibold text-white"
-          style={{ background: "var(--accent-hex)" }}
+          style={{ background: "var(--accent-hex)", color: "var(--accent-foreground)" }}
         >
           + Neu
         </button>
@@ -227,7 +227,7 @@ function EditorModal({
           <button onClick={onClose} className="flex-1 py-3 rounded-xl text-sm font-semibold" style={{ background: "rgba(0,0,0,0.05)" }}>
             Abbrechen
           </button>
-          <button onClick={onSave} disabled={saving} className="flex-1 py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--accent-hex)" }}>
+          <button onClick={onSave} disabled={saving} className="flex-1 py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--accent-hex)", color: "var(--accent-foreground)" }}>
             {saving ? "Speichern…" : "Speichern"}
           </button>
         </div>

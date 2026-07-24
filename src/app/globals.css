@@ -3,14 +3,51 @@
 :root {
   --accent: 227, 6, 19;
   --accent-hex: #e30613;
+  --accent-foreground: #ffffff;
+
   --bg-primary: #ffffff;
   --bg-secondary: #f5f5f7;
   --bg-tertiary: #e8e8ed;
   --text-primary: #1d1d1f;
   --text-secondary: #6e6e73;
+
   --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-strong-bg: rgba(255, 255, 255, 0.85);
+  --glass-card-bg: rgba(255, 255, 255, 0.65);
   --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-strong-border: rgba(255, 255, 255, 0.6);
+  --glass-card-border: rgba(255, 255, 255, 0.4);
+  --glass-card-inset: rgba(255, 255, 255, 0.5);
   --glass-shadow: 0 2px 20px rgba(0, 0, 0, 0.06);
+  --glass-strong-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
+  --glass-card-shadow: 0 2px 16px rgba(0, 0, 0, 0.04);
+
+  --hairline: rgba(0, 0, 0, 0.06);
+  --field-bg: rgba(0, 0, 0, 0.04);
+  --surface-subtle: rgba(0, 0, 0, 0.03);
+}
+
+:root[data-theme="dark"] {
+  --bg-primary: #1c1c1e;
+  --bg-secondary: #000000;
+  --bg-tertiary: #1c1c1e;
+  --text-primary: #f5f5f7;
+  --text-secondary: #9a9aa1;
+
+  --glass-bg: rgba(28, 28, 30, 0.72);
+  --glass-strong-bg: rgba(28, 28, 30, 0.85);
+  --glass-card-bg: rgba(28, 28, 30, 0.66);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-strong-border: rgba(255, 255, 255, 0.12);
+  --glass-card-border: rgba(255, 255, 255, 0.08);
+  --glass-card-inset: rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+  --glass-strong-shadow: 0 4px 30px rgba(0, 0, 0, 0.55);
+  --glass-card-shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
+
+  --hairline: rgba(255, 255, 255, 0.12);
+  --field-bg: rgba(255, 255, 255, 0.08);
+  --surface-subtle: rgba(255, 255, 255, 0.06);
 }
 
 * {
@@ -28,6 +65,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Sichtbarer Fokus-Zustand für Tastatur-/Screenreader-Nutzer (Barrierefreiheit) */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-hex);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
 .glass {
   background: var(--glass-bg);
   backdrop-filter: blur(40px) saturate(180%);
@@ -37,20 +81,20 @@ body {
 }
 
 .glass-strong {
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--glass-strong-bg);
   backdrop-filter: blur(60px) saturate(200%);
   -webkit-backdrop-filter: blur(60px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--glass-strong-border);
+  box-shadow: var(--glass-strong-shadow);
 }
 
 .glass-card {
-  background: rgba(255, 255, 255, 0.65);
+  background: var(--glass-card-bg);
   backdrop-filter: blur(30px) saturate(150%);
   -webkit-backdrop-filter: blur(30px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid var(--glass-card-border);
   border-radius: 20px;
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  box-shadow: var(--glass-card-shadow), inset 0 1px 0 var(--glass-card-inset);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -60,22 +104,6 @@ body {
 
 .accent-gradient {
   background: linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent) / 0.8));
-}
-
-.shimmer {
-  background: linear-gradient(
-    110deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.4) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 2s infinite;
-}
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
 }
 
 .tag {
@@ -90,4 +118,28 @@ body {
 
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+/* Formularfelder im Dark Mode sichtbar halten (auch bei Tailwind bg-black/…) */
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] select {
+  background-color: var(--field-bg) !important;
+  color: var(--text-primary);
+}
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder {
+  color: var(--text-secondary);
+}
+
+/* Bewegungsreduktion respektieren (Barrierefreiheit) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

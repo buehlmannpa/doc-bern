@@ -60,7 +60,7 @@ export default function AdminLoginPage() {
           type="submit"
           disabled={loading}
           className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
-          style={{ background: "var(--accent-hex)" }}
+          style={{ background: "var(--accent-hex)", color: "var(--accent-foreground)" }}
         >
           {loading ? "Anmelden…" : "Anmelden"}
         </button>

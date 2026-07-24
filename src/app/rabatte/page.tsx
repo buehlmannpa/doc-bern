@@ -31,7 +31,7 @@ export default async function VorteilePage() {
           <article className="glass-card p-5 relative overflow-hidden" style={{ borderLeft: "4px solid var(--accent-hex)" }}>
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               {action.periodLabel && (
-                <span className="tag text-[10px] text-white" style={{ background: "var(--accent-hex)" }}>
+                <span className="tag text-[10px] text-white" style={{ background: "var(--accent-hex)", color: "var(--accent-foreground)" }}>
                   {action.periodLabel}
                 </span>
               )}

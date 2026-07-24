@@ -93,7 +93,7 @@ export default function NewsClient({ news }: { news: NewsItem[] }) {
               </button>
 
               {isExpanded && (
-                <div className="px-5 pb-5 border-t border-white/30">
+                <div className="px-5 pb-5 border-t border-[color:var(--hairline)]">
                   {item.imageUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={item.imageUrl} alt={item.title} className="w-full rounded-2xl mt-4 mb-3" loading="lazy" />

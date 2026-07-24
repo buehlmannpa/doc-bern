@@ -66,7 +66,7 @@ export default function ActionsAdminPage() {
         <button
           onClick={() => { setDraft({ ...emptyDraft }); setError(""); }}
           className="px-4 py-2 rounded-xl text-sm font-semibold text-white"
-          style={{ background: "var(--accent-hex)" }}
+          style={{ background: "var(--accent-hex)", color: "var(--accent-foreground)" }}
         >
           + Neu
         </button>
@@ -161,7 +161,7 @@ export default function ActionsAdminPage() {
             {error && <p className="text-xs mt-3" style={{ color: "#ff3b30" }}>{error}</p>}
             <div className="flex gap-2 mt-5">
               <button onClick={() => setDraft(null)} className="flex-1 py-3 rounded-xl text-sm font-semibold" style={{ background: "rgba(0,0,0,0.05)" }}>Abbrechen</button>
-              <button onClick={save} disabled={saving} className="flex-1 py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--accent-hex)" }}>
+              <button onClick={save} disabled={saving} className="flex-1 py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--accent-hex)", color: "var(--accent-foreground)" }}>
                 {saving ? "Speichern…" : "Speichern"}
               </button>
             </div>
