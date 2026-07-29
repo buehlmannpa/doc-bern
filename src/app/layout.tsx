@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
 import ThemeProvider from "@/components/ThemeProvider";
 import MaintenanceScreen from "@/components/MaintenanceScreen";
 import { getMaintenance } from "@/lib/db";
@@ -56,11 +57,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <MaintenanceScreen />
           ) : (
             <>
-              <Header />
-              <main className="max-w-lg mx-auto pt-[68px] pb-24 px-4">
-                {children}
-              </main>
-              <BottomNav />
+              {/* Desktop: Seitenleiste */}
+              <Sidebar />
+              {/* Mobile: oberer Header + untere Navigation */}
+              <div className="lg:hidden">
+                <Header />
+              </div>
+              <div className="lg:pl-64">
+                <main className="max-w-lg mx-auto pt-[68px] pb-24 px-4 lg:max-w-3xl lg:pt-10 lg:pb-12 lg:px-8">
+                  {children}
+                </main>
+              </div>
+              <div className="lg:hidden">
+                <BottomNav />
+              </div>
             </>
           )}
         </ThemeProvider>
