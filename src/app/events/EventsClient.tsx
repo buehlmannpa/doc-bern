@@ -32,7 +32,7 @@ export default function EventsClient({ events }: { events: EventItem[] }) {
           <h2 className="text-xs font-semibold uppercase tracking-wider mb-3 px-1" style={{ color: "var(--text-secondary)" }}>
             Anstehende Events
           </h2>
-          <div className="space-y-3">
+          <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 lg:items-start">
             {upcoming.map((event) => (
               <EventCard
                 key={event.id}
@@ -56,7 +56,7 @@ export default function EventsClient({ events }: { events: EventItem[] }) {
           <h2 className="text-xs font-semibold uppercase tracking-wider mb-3 px-1" style={{ color: "var(--text-secondary)" }}>
             Vergangene Events
           </h2>
-          <div className="space-y-3">
+          <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 lg:items-start">
             {past.map((event) => (
               <EventCard
                 key={event.id}

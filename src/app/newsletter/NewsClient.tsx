@@ -61,7 +61,7 @@ export default function NewsClient({ news }: { news: NewsItem[] }) {
         </p>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 lg:items-start">
         {shown.map((item) => {
           const isExpanded = expandedId === item.id;
           return (

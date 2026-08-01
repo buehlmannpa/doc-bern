@@ -58,6 +58,8 @@ export default async function Home() {
         </p>
       </section>
 
+      {/* Events + News (Desktop: 2 Spalten) */}
+      <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-6 lg:space-y-0">
       {/* Anstehende Events */}
       <section>
         <div className="flex items-center justify-between mb-3 px-1">
@@ -118,18 +120,21 @@ export default async function Home() {
           ))}
         </div>
       </section>
+      </div>
 
       {/* Vorstand stellt sich vor */}
       <section>
         <h2 className="text-lg font-bold tracking-tight mb-1 px-1">Vorstand stellt sich vor</h2>
         <p className="text-sm mb-3 px-1" style={{ color: "var(--text-secondary)" }}>{boardIntro}</p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {boardList.map((m, i) => (
             <BoardMemberCard key={i} member={m} />
           ))}
         </div>
       </section>
 
+      {/* hostettler + Mitglied werden (Desktop: 2 Spalten) */}
+      <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-6 lg:space-y-0 lg:items-start">
       {/* hostettler Quick Info */}
       <section className="glass-card p-5">
         <h2 className="font-bold text-base mb-3">{hostettlerInfo.name}</h2>
@@ -177,6 +182,7 @@ export default async function Home() {
         </div>
         <span className="text-sm font-semibold" style={{ color: "var(--accent-hex)" }}>→</span>
       </a>
+      </div>
     </div>
   );
 }

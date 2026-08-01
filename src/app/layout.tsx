@@ -64,7 +64,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <Header />
               </div>
               <div className="lg:pl-64">
-                <main className="max-w-lg mx-auto pt-[68px] pb-24 px-4 lg:max-w-3xl lg:pt-10 lg:pb-12 lg:px-8">
+                <main className="max-w-lg mx-auto pt-[68px] pb-24 px-4 lg:max-w-6xl lg:pt-10 lg:pb-12 lg:px-10">
                   {children}
                 </main>
               </div>

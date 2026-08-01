@@ -39,7 +39,7 @@ export default async function PartnersPage() {
         </div>
         <h2 className="font-bold text-lg mb-3">{hostettlerInfo.name}</h2>
 
-        <div className="space-y-3">
+        <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0 lg:items-start">
           <a href={`tel:${hostettlerInfo.phone}`} className="flex items-center gap-3 p-3 rounded-xl text-sm font-semibold" style={{ background: "rgba(var(--accent), 0.08)", color: "var(--accent-hex)" }}>
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -102,7 +102,7 @@ export default async function PartnersPage() {
       {/* Partner */}
       <section>
         <h2 className="text-2xl font-bold tracking-tight mb-3 px-1">Partner</h2>
-        <div className="space-y-3">
+        <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0 lg:items-start">
           {partners.map((partner) => (
             <article key={partner.id} className="glass-card p-5">
               <div className="flex items-center gap-2 mb-1 flex-wrap">

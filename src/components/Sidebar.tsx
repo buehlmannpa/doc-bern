@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useRef } from "react";
 import { useTheme, type ThemeMode } from "@/components/ThemeProvider";
 
 const navItems = [
@@ -51,7 +52,19 @@ const themeOptions: { value: ThemeMode; label: string }[] = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const taps = useRef<{ count: number; last: number }>({ count: 0, last: 0 });
   const { accentIndex, setAccentIndex, colors, themeMode, setThemeMode } = useTheme();
+
+  function handleWordmarkTap() {
+    const now = Date.now();
+    taps.current.count = now - taps.current.last > 1500 ? 1 : taps.current.count + 1;
+    taps.current.last = now;
+    if (taps.current.count >= 5) {
+      taps.current.count = 0;
+      router.push("/admin");
+    }
+  }
 
   return (
     <aside
@@ -60,13 +73,15 @@ export default function Sidebar() {
     >
       {/* Logo / Titel */}
       <div className="flex items-center gap-3 px-5 h-16 flex-shrink-0" style={{ borderBottom: "1px solid var(--hairline)" }}>
-        <Image src="/logo.png" alt="DOC Bern" width={40} height={40} className="rounded-xl" />
-        <div className="min-w-0">
+        <Link href="/" aria-label="Zur Startseite">
+          <Image src="/logo.png" alt="DOC Bern" width={40} height={40} className="rounded-xl" />
+        </Link>
+        <button type="button" onClick={handleWordmarkTap} className="min-w-0 text-left bg-transparent" aria-label="DOC Bern">
           <div className="font-bold text-sm tracking-tight leading-tight">DOC Bern</div>
           <div className="text-[11px] leading-tight" style={{ color: "var(--text-secondary)" }}>
             Ducati Official Club
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Navigation */}

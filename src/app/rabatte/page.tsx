@@ -52,7 +52,7 @@ export default async function VorteilePage() {
         <h2 className="text-xs font-semibold uppercase tracking-wider mb-3 px-1" style={{ color: "var(--text-secondary)" }}>
           DOC-Rabatte für Mitglieder
         </h2>
-        <div className="space-y-3">
+        <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 lg:items-start">
           {sorted.map((d) => (
             <article key={d.id} className="glass-card p-5">
               <div className="flex items-start gap-4">
