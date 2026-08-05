@@ -72,8 +72,8 @@ export default async function Home() {
               Zurzeit sind keine Events geplant.
             </p>
           )}
-          {nextEvents.map((event) => (
-            <Link key={event.id} href="/events" className="glass-card p-4 flex gap-4 items-start">
+          {nextEvents.map((event, i) => (
+            <Link key={event.id} href="/events" className={`glass-card p-4 flex gap-4 items-start${i >= 1 ? " hidden lg:flex" : ""}`}>
               <div className="flex-shrink-0 w-12 h-12 rounded-2xl flex flex-col items-center justify-center" style={{ background: "rgba(var(--accent), 0.1)" }}>
                 <span className="text-xs font-bold" style={{ color: "var(--accent-hex)" }}>{formatDate(event.date).split(" ")[0]}</span>
                 <span className="text-[10px] font-semibold uppercase" style={{ color: "var(--accent-hex)" }}>{formatDate(event.date).split(" ")[1]}</span>
@@ -102,12 +102,8 @@ export default async function Home() {
           {latestNews.length === 0 && (
             <p className="glass-card p-4 text-sm" style={{ color: "var(--text-secondary)" }}>Noch keine News.</p>
           )}
-          {latestNews.map((item) => (
-            <Link key={item.id} href="/newsletter" className="glass-card block overflow-hidden">
-              {item.imageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.imageUrl} alt={item.title} className="w-full h-32 object-cover" loading="lazy" />
-              )}
+          {latestNews.map((item, i) => (
+            <Link key={item.id} href="/newsletter" className={`glass-card block overflow-hidden${i >= 1 ? " hidden lg:block" : ""}`}>
               <div className="p-4">
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="tag text-[10px]" style={{ background: categoryColors[item.category], color: categoryTextColors[item.category] }}>{categoryLabels[item.category]}</span>

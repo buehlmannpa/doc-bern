@@ -34,7 +34,7 @@ export default function BoardMemberCard({ member }: { member: Member }) {
         </div>
       )}
       <span className="text-xs font-semibold" style={{ color: "var(--accent-hex)" }}>{member.role}</span>
-      <span className="text-sm font-semibold">{member.name}</span>
+      <span className="text-sm font-semibold">{member.name.split(" ")[0]}</span>
       {member.description && (
         <p className="text-[11px] mt-1" style={{ color: "var(--text-secondary)" }}>{member.description}</p>
       )}

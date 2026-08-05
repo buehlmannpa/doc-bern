@@ -118,14 +118,12 @@ function EventCard({
           </svg>
           {event.location}
         </div>
-        {!expanded && (
-          <div className="flex items-center gap-1 mt-2 text-xs font-semibold" style={{ color: "var(--accent-hex)" }}>
-            Details anzeigen
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-        )}
+        <div className="flex items-center gap-1 mt-2 text-xs font-semibold" style={{ color: "var(--accent-hex)" }}>
+          {expanded ? "Weniger anzeigen" : "Weiterlesen"}
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} className={`transition-transform ${expanded ? "rotate-180" : ""}`}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
       </button>
 
       {expanded && (
@@ -156,17 +154,6 @@ function EventCard({
               ))}
             </div>
           )}
-
-          <button
-            onClick={onToggle}
-            className="mt-4 w-full flex items-center justify-center gap-1 text-sm font-semibold py-2.5 rounded-xl"
-            style={{ background: "rgba(0,0,0,0.04)", color: "var(--text-secondary)" }}
-          >
-            Schliessen & zurück zur Liste
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
-            </svg>
-          </button>
         </div>
       )}
     </article>
