@@ -75,22 +75,44 @@ export default async function PartnersPage() {
             </div>
           </a>
 
-          {/* Öffnungszeiten */}
+          {/* Öffnungszeiten Shop */}
           <div className="p-3 rounded-xl" style={{ background: "var(--surface-subtle)" }}>
             <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
               <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: "var(--accent-hex)" }}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Öffnungszeiten
+              Öffnungszeiten Shop
             </h3>
             <div className="space-y-1">
-              {hostettlerInfo.hours.map((h) => {
+              {hostettlerInfo.hoursShop.map((h) => {
                 const isToday = h.day === todayName;
                 return (
-                  <div key={h.day} className="flex justify-between text-xs py-0.5"
+                  <div key={h.day} className="flex justify-between gap-3 text-xs py-0.5"
                     style={{ color: isToday ? "var(--accent-hex)" : "var(--text-secondary)", fontWeight: isToday ? 700 : 400 }}>
-                    <span>{h.day}{isToday ? " · heute" : ""}</span>
-                    <span>{h.time}</span>
+                    <span className="flex-shrink-0">{h.day}{isToday ? " · heute" : ""}</span>
+                    <span className="text-right">{h.time}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Öffnungszeiten Werkstatt */}
+          <div className="p-3 rounded-xl" style={{ background: "var(--surface-subtle)" }}>
+            <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: "var(--accent-hex)" }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085" />
+              </svg>
+              Öffnungszeiten Werkstatt
+            </h3>
+            <div className="space-y-1">
+              {hostettlerInfo.hoursWorkshop.map((h) => {
+                const isToday = h.day === todayName;
+                return (
+                  <div key={h.day} className="flex justify-between gap-3 text-xs py-0.5"
+                    style={{ color: isToday ? "var(--accent-hex)" : "var(--text-secondary)", fontWeight: isToday ? 700 : 400 }}>
+                    <span className="flex-shrink-0">{h.day}{isToday ? " · heute" : ""}</span>
+                    <span className="text-right">{h.time}</span>
                   </div>
                 );
               })}

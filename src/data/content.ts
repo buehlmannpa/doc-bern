@@ -47,13 +47,22 @@ export const hostettlerInfo = {
   email: "bern@hostettler-moto.ch",
   website: "https://www.hostettler-moto.ch/bern/",
   googleMaps: "https://www.google.com/maps/search/?api=1&query=hostettler+moto+ag+Deisswil+Stettlen",
-  hours: [
-    { day: "Montag", time: "08:00 – 18:30" },
+  hoursShop: [
+    { day: "Montag", time: "Geschlossen" },
     { day: "Dienstag", time: "08:00 – 18:30" },
     { day: "Mittwoch", time: "08:00 – 18:30" },
     { day: "Donnerstag", time: "08:00 – 18:30" },
     { day: "Freitag", time: "08:00 – 18:30" },
     { day: "Samstag", time: "08:00 – 16:00" },
+    { day: "Sonntag", time: "Geschlossen" },
+  ],
+  hoursWorkshop: [
+    { day: "Montag", time: "Geschlossen" },
+    { day: "Dienstag", time: "07:30 – 12:00 · 13:00 – 17:30" },
+    { day: "Mittwoch", time: "07:30 – 12:00 · 13:00 – 17:30" },
+    { day: "Donnerstag", time: "07:30 – 12:00 · 13:00 – 17:30" },
+    { day: "Freitag", time: "07:30 – 12:00 · 13:00 – 17:30" },
+    { day: "Samstag", time: "07:30 – 12:00 · 13:00 – 16:00" },
     { day: "Sonntag", time: "Geschlossen" },
   ],
 };
@@ -119,30 +128,56 @@ export const memberAction: MemberAction = {
 };
 
 // ---------- DOC-Rabatte für Mitglieder ----------
+// Alle Rabatte bei hostettler moto ag – Bern (Mitgliedschaft erwähnen).
 export const discounts: Discount[] = [
   {
     id: "d1",
-    title: "Service-Rabatt bei hostettler moto ag",
+    title: "Rennreifen",
     partner: "hostettler moto ag – Bern",
-    description:
-      "Vergünstigung auf Servicearbeiten für DOC-Bern Mitglieder. Einfach Mitgliedschaft erwähnen.",
-    percentage: 10,
-    validUntil: "2026-12-31",
+    description: "25% Rabatt auf Rennreifen.",
+    percentage: 25,
   },
   {
     id: "d2",
-    title: "Rabatt in der Tscharnergut-Apotheke",
-    partner: "Tscharnergut-Apotheke",
-    description: "Vergünstigung auf ausgewählte Produkte für DOC-Bern Mitglieder.",
-    percentage: 10,
-    validUntil: "2026-12-31",
+    title: "Bekleidung (allgemein)",
+    partner: "hostettler moto ag – Bern",
+    description: "20% Rabatt auf das allgemeine Bekleidungssortiment.",
+    percentage: 20,
   },
   {
     id: "d3",
-    title: "Fahrschule Daniel Gerber",
-    partner: "Fahrschule Daniel Gerber",
-    description: "Spezialkonditionen für DOC-Bern Mitglieder und Angehörige.",
-    validUntil: "2026-12-31",
+    title: "Strassenreifen",
+    partner: "hostettler moto ag – Bern",
+    description: "20% Rabatt auf Strassenreifen.",
+    percentage: 20,
+  },
+  {
+    id: "d4",
+    title: "Bekleidung von Ducati",
+    partner: "hostettler moto ag – Bern",
+    description: "15% Rabatt auf Ducati-Bekleidung.",
+    percentage: 15,
+  },
+  {
+    id: "d5",
+    title: "Zubehör von Ducati",
+    partner: "hostettler moto ag – Bern",
+    description: "15% Rabatt auf Ducati-Zubehör (mit Montage in der Filiale).",
+    percentage: 15,
+  },
+  {
+    id: "d6",
+    title: "Zubehör (allgemein)",
+    partner: "hostettler moto ag – Bern",
+    description: "10% Rabatt auf allgemeines Zubehör (mit Montage in der Filiale).",
+    percentage: 10,
+  },
+  {
+    id: "d7",
+    title: "Ersatzteile & Werkstattarbeiten",
+    partner: "hostettler moto ag – Bern",
+    description: "5% Rabatt auf Ersatzteile und ausgeführte Werkstattarbeiten (nur Ducati).",
+    percentage: 5,
   },
 ];
 
