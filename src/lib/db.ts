@@ -7,6 +7,19 @@ import { hashPassword, type AdminRole } from "./auth";
 
 export type AdminUser = { username: string; name: string; role: AdminRole };
 
+// In der Preview-Umgebung (Dev/Staging + Feature-Previews) auf eine GETRENNTE
+// Datenbank zeigen, falls POSTGRES_DEV_URL gesetzt ist. Die von der Neon-
+// Integration verwaltete POSTGRES_URL (= Produktion) bleibt unangetastet.
+// Wirkt nur, wenn VERCEL_ENV === "preview" UND POSTGRES_DEV_URL vorhanden ist –
+// in Produktion und lokal passiert nichts. @vercel/postgres liest POSTGRES_URL
+// erst bei der ersten Abfrage, daher genügt es, sie hier beim Laden zu setzen.
+if (process.env.VERCEL_ENV === "preview" && process.env.POSTGRES_DEV_URL) {
+  process.env.POSTGRES_URL = process.env.POSTGRES_DEV_URL;
+  if (process.env.POSTGRES_DEV_URL_NON_POOLING) {
+    process.env.POSTGRES_URL_NON_POOLING = process.env.POSTGRES_DEV_URL_NON_POOLING;
+  }
+}
+
 // Öffentliche Inhalte werden zwischengespeichert, damit nicht jeder Seitenaufruf
 // die (im Gratis-Tarif oft "schlafende") Datenbank aufwecken muss. Änderungen im
 // CMS lösen über revalidateTag(...) sofort eine Aktualisierung aus.
