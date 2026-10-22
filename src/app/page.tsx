@@ -61,19 +61,19 @@ export default async function Home() {
       {/* Events + News (Desktop: 2 Spalten) */}
       <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-6 lg:space-y-0">
       {/* Anstehende Events */}
-      <section>
+      <section className="lg:flex lg:flex-col">
         <div className="flex items-center justify-between mb-3 px-1">
           <h2 className="text-lg font-bold tracking-tight">Anstehende Events</h2>
           <Link href="/events" className="text-sm font-semibold" style={{ color: "var(--accent-hex)" }}>Alle →</Link>
         </div>
-        <div className="space-y-3">
+        <div className="space-y-3 lg:space-y-0 lg:flex lg:flex-col lg:gap-3 lg:flex-1">
           {nextEvents.length === 0 && (
-            <p className="glass-card p-4 text-sm" style={{ color: "var(--text-secondary)" }}>
+            <p className="glass-card p-4 text-sm lg:flex-1" style={{ color: "var(--text-secondary)" }}>
               Zurzeit sind keine Events geplant.
             </p>
           )}
           {nextEvents.map((event, i) => (
-            <Link key={event.id} href="/events" className={`glass-card p-4 flex gap-4 items-start${i >= 1 ? " hidden lg:flex" : ""}`}>
+            <Link key={event.id} href="/events" className={`glass-card p-4 flex gap-4 items-start lg:items-center lg:flex-1${i >= 1 ? " hidden lg:flex" : ""}`}>
               <div className="flex-shrink-0 w-12 h-12 rounded-2xl flex flex-col items-center justify-center" style={{ background: "rgba(var(--accent), 0.1)" }}>
                 <span className="text-xs font-bold" style={{ color: "var(--accent-hex)" }}>{formatDate(event.date).split(" ")[0]}</span>
                 <span className="text-[10px] font-semibold uppercase" style={{ color: "var(--accent-hex)" }}>{formatDate(event.date).split(" ")[1]}</span>
@@ -93,18 +93,18 @@ export default async function Home() {
       </section>
 
       {/* Aktuelle News */}
-      <section>
+      <section className="lg:flex lg:flex-col">
         <div className="flex items-center justify-between mb-3 px-1">
           <h2 className="text-lg font-bold tracking-tight">Aktuelle News</h2>
           <Link href="/newsletter" className="text-sm font-semibold" style={{ color: "var(--accent-hex)" }}>Alle →</Link>
         </div>
-        <div className="space-y-3">
+        <div className="space-y-3 lg:space-y-0 lg:flex lg:flex-col lg:gap-3 lg:flex-1">
           {latestNews.length === 0 && (
-            <p className="glass-card p-4 text-sm" style={{ color: "var(--text-secondary)" }}>Noch keine News.</p>
+            <p className="glass-card p-4 text-sm lg:flex-1" style={{ color: "var(--text-secondary)" }}>Noch keine News.</p>
           )}
           {latestNews.map((item, i) => (
-            <Link key={item.id} href="/newsletter" className={`glass-card block overflow-hidden${i >= 1 ? " hidden lg:block" : ""}`}>
-              <div className="p-4">
+            <Link key={item.id} href="/newsletter" className={`glass-card block overflow-hidden lg:flex-1 lg:flex lg:flex-col${i >= 1 ? " hidden lg:flex" : ""}`}>
+              <div className="p-4 lg:flex-1 lg:flex lg:flex-col lg:justify-center">
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="tag text-[10px]" style={{ background: categoryColors[item.category], color: categoryTextColors[item.category] }}>{categoryLabels[item.category]}</span>
                   <span className="text-[10px]" style={{ color: "var(--text-secondary)" }}>{formatDate(item.publishedAt)}</span>
@@ -129,10 +129,10 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* hostettler + Mitglied werden (Desktop: 2 Spalten) */}
-      <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-6 lg:space-y-0 lg:items-start">
+      {/* hostettler + Mitglied werden (Desktop: 2 Spalten, gleiche Höhe) */}
+      <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-6 lg:space-y-0 lg:items-stretch">
       {/* hostettler Quick Info */}
-      <section className="glass-card p-5">
+      <section className="glass-card p-5 lg:h-full lg:flex lg:flex-col">
         <h2 className="font-bold text-base mb-3">{hostettlerInfo.name}</h2>
         <div className="space-y-2.5 text-sm">
           <a href={`tel:${hostettlerInfo.phone}`} className="flex items-center gap-3" style={{ color: "var(--accent-hex)" }}>
@@ -149,7 +149,7 @@ export default async function Home() {
             {hostettlerInfo.address}
           </a>
         </div>
-        <Link href="/partners" className="mt-3 block text-center text-sm font-semibold py-2.5 rounded-xl" style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}>
+        <Link href="/partners" className="mt-3 lg:mt-auto block text-center text-sm font-semibold py-2.5 rounded-xl" style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}>
           Zum Vertragshändler & Partnern →
         </Link>
       </section>
@@ -159,7 +159,7 @@ export default async function Home() {
         href={membershipUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="glass-card p-4 flex items-center gap-4"
+        className="glass-card p-5 lg:h-full flex items-center gap-4"
         style={{ borderLeft: "4px solid var(--accent-hex)" }}
       >
         <div
