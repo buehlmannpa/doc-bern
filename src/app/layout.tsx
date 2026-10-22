@@ -6,6 +6,7 @@ import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import ThemeProvider from "@/components/ThemeProvider";
 import MaintenanceScreen from "@/components/MaintenanceScreen";
+import EnvBadge from "@/components/EnvBadge";
 import { getMaintenance } from "@/lib/db";
 
 export const metadata: Metadata = {
@@ -53,6 +54,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <ThemeProvider>
+          <EnvBadge />
           {showMaintenance ? (
             <MaintenanceScreen />
           ) : (
