@@ -1,10 +1,24 @@
 import { sql } from "@vercel/postgres";
+import { unstable_cache, revalidateTag } from "next/cache";
 import type { EventItem, NewsItem, NewsCategory, ActionItem, PartnerItem, BoardMemberItem } from "./types";
 import { seedEvents, seedNews } from "./seed";
 import { partners as seedPartners, board as seedBoard } from "@/data/content";
 import { hashPassword, type AdminRole } from "./auth";
 
 export type AdminUser = { username: string; name: string; role: AdminRole };
+
+// Öffentliche Inhalte werden zwischengespeichert, damit nicht jeder Seitenaufruf
+// die (im Gratis-Tarif oft "schlafende") Datenbank aufwecken muss. Änderungen im
+// CMS lösen über revalidateTag(...) sofort eine Aktualisierung aus.
+const PUBLIC_REVALIDATE = 60; // Sekunden
+const TAGS = {
+  events: "events",
+  news: "news",
+  partners: "partners",
+  board: "board",
+  actions: "actions",
+  settings: "settings",
+} as const;
 
 export function isDbConfigured(): boolean {
   return Boolean(
@@ -159,6 +173,28 @@ async function ensureSchema() {
   schemaReady = true;
 }
 
+// Lesezugriffe sollen NICHT bei jedem (Kalt-)Start das komplette Schema
+// sicherstellen (~20 SQL-Befehle gegen eine evtl. ebenfalls kalte DB).
+// Stattdessen die Abfrage direkt ausführen und nur im Fehlerfall (Tabelle oder
+// Spalte fehlt noch) einmalig das Schema anlegen und erneut versuchen.
+function isMissingSchema(e: unknown): boolean {
+  const code = (e as { code?: string } | null)?.code;
+  return code === "42P01" /* undefined_table */ || code === "42703" /* undefined_column */;
+}
+
+async function readQuery<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (e) {
+    if (isMissingSchema(e)) {
+      schemaReady = false;
+      await ensureSchema();
+      return run();
+    }
+    throw e;
+  }
+}
+
 function genId(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -203,25 +239,27 @@ function rowToNews(r: any): NewsItem {
 
 // ---------- EVENTS ----------
 
-// Alle Events (Admin) – inkl. Entwürfe/geplante
+// Alle Events (Admin) – inkl. Entwürfe/geplante. Nicht gecacht: Admin sieht stets frisch.
 export async function getEvents(): Promise<EventItem[]> {
   if (!isDbConfigured()) return seedEvents;
-  await ensureSchema();
-  const { rows } = await sql`SELECT * FROM events ORDER BY date ASC, time ASC;`;
+  const { rows } = await readQuery(() => sql`SELECT * FROM events ORDER BY date ASC, time ASC;`);
   return rows.map(rowToEvent);
 }
 
-// Öffentlich sichtbare Events (veröffentlicht und Publikationszeitpunkt erreicht)
-export async function getPublishedEvents(): Promise<EventItem[]> {
-  if (!isDbConfigured()) return seedEvents;
-  await ensureSchema();
-  const { rows } = await sql`
-    SELECT * FROM events
-    WHERE status = 'published' AND publish_at <= now()
-    ORDER BY date ASC, time ASC;
-  `;
-  return rows.map(rowToEvent);
-}
+// Öffentlich sichtbare Events (veröffentlicht und Publikationszeitpunkt erreicht). Gecacht.
+export const getPublishedEvents = unstable_cache(
+  async (): Promise<EventItem[]> => {
+    if (!isDbConfigured()) return seedEvents;
+    const { rows } = await readQuery(() => sql`
+      SELECT * FROM events
+      WHERE status = 'published' AND publish_at <= now()
+      ORDER BY date ASC, time ASC;
+    `);
+    return rows.map(rowToEvent);
+  },
+  ["published-events"],
+  { revalidate: PUBLIC_REVALIDATE, tags: [TAGS.events] }
+);
 
 export async function createEvent(input: Omit<EventItem, "id">): Promise<EventItem> {
   await ensureSchema();
@@ -234,6 +272,7 @@ export async function createEvent(input: Omit<EventItem, "id">): Promise<EventIt
             ${input.status ?? "published"}, ${input.publishAt ?? new Date().toISOString()}, ${input.updatedBy ?? null})
     RETURNING *;
   `;
+  revalidateTag(TAGS.events);
   return rowToEvent(res.rows[0]);
 }
 
@@ -258,35 +297,39 @@ export async function updateEvent(id: string, input: Omit<EventItem, "id">): Pro
   if (res.rows.length === 0) {
     throw new Error(`Event nicht gefunden (id=${id}).`);
   }
+  revalidateTag(TAGS.events);
   return rowToEvent(res.rows[0]);
 }
 
 export async function deleteEvent(id: string): Promise<void> {
   await ensureSchema();
   await sql`DELETE FROM events WHERE id = ${id};`;
+  revalidateTag(TAGS.events);
 }
 
 // ---------- NEWS ----------
 
-// Alle News (Admin) – inkl. Entwürfe/geplante
+// Alle News (Admin) – inkl. Entwürfe/geplante. Nicht gecacht: Admin sieht stets frisch.
 export async function getNews(): Promise<NewsItem[]> {
   if (!isDbConfigured()) return seedNews;
-  await ensureSchema();
-  const { rows } = await sql`SELECT * FROM news ORDER BY sort_order ASC, published_at DESC;`;
+  const { rows } = await readQuery(() => sql`SELECT * FROM news ORDER BY sort_order ASC, published_at DESC;`);
   return rows.map(rowToNews);
 }
 
-// Öffentlich sichtbare News (veröffentlicht und Publikationszeitpunkt erreicht)
-export async function getPublishedNews(): Promise<NewsItem[]> {
-  if (!isDbConfigured()) return seedNews;
-  await ensureSchema();
-  const { rows } = await sql`
-    SELECT * FROM news
-    WHERE status = 'published' AND published_at <= now()
-    ORDER BY sort_order ASC, published_at DESC;
-  `;
-  return rows.map(rowToNews);
-}
+// Öffentlich sichtbare News (veröffentlicht und Publikationszeitpunkt erreicht). Gecacht.
+export const getPublishedNews = unstable_cache(
+  async (): Promise<NewsItem[]> => {
+    if (!isDbConfigured()) return seedNews;
+    const { rows } = await readQuery(() => sql`
+      SELECT * FROM news
+      WHERE status = 'published' AND published_at <= now()
+      ORDER BY sort_order ASC, published_at DESC;
+    `);
+    return rows.map(rowToNews);
+  },
+  ["published-news"],
+  { revalidate: PUBLIC_REVALIDATE, tags: [TAGS.news] }
+);
 
 export async function createNews(
   input: Omit<NewsItem, "id" | "sortOrder">
@@ -303,6 +346,7 @@ export async function createNews(
             ${input.status ?? "published"}, ${input.updatedBy ?? null})
     RETURNING *;
   `;
+  revalidateTag(TAGS.news);
   return rowToNews(res.rows[0]);
 }
 
@@ -329,12 +373,14 @@ export async function updateNews(
   if (res.rows.length === 0) {
     throw new Error(`Newsbeitrag nicht gefunden (id=${id}).`);
   }
+  revalidateTag(TAGS.news);
   return rowToNews(res.rows[0]);
 }
 
 export async function deleteNews(id: string): Promise<void> {
   await ensureSchema();
   await sql`DELETE FROM news WHERE id = ${id};`;
+  revalidateTag(TAGS.news);
 }
 
 export async function reorderNews(orderedIds: string[]): Promise<void> {
@@ -342,6 +388,7 @@ export async function reorderNews(orderedIds: string[]): Promise<void> {
   for (let i = 0; i < orderedIds.length; i++) {
     await sql`UPDATE news SET sort_order = ${i} WHERE id = ${orderedIds[i]};`;
   }
+  revalidateTag(TAGS.news);
 }
 
 // ---------- AKTIONEN (Rabattaktionen) ----------
@@ -360,14 +407,17 @@ function rowToAction(r: any): ActionItem {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-export async function getActions(limit?: number): Promise<ActionItem[]> {
-  if (!isDbConfigured()) return [];
-  await ensureSchema();
-  const { rows } = limit
-    ? await sql`SELECT * FROM actions ORDER BY created_at DESC LIMIT ${limit};`
-    : await sql`SELECT * FROM actions ORDER BY created_at DESC;`;
-  return rows.map(rowToAction);
-}
+export const getActions = unstable_cache(
+  async (limit?: number): Promise<ActionItem[]> => {
+    if (!isDbConfigured()) return [];
+    const { rows } = limit
+      ? await readQuery(() => sql`SELECT * FROM actions ORDER BY created_at DESC LIMIT ${limit};`)
+      : await readQuery(() => sql`SELECT * FROM actions ORDER BY created_at DESC;`);
+    return rows.map(rowToAction);
+  },
+  ["actions"],
+  { revalidate: PUBLIC_REVALIDATE, tags: [TAGS.actions] }
+);
 
 export async function getLatestAction(): Promise<ActionItem | null> {
   const list = await getActions(1);
@@ -384,6 +434,7 @@ export async function createAction(
     VALUES (${id}, ${input.title}, ${input.description ?? ""}, ${input.discount ?? ""}, ${input.periodLabel ?? ""})
     RETURNING *;
   `;
+  revalidateTag(TAGS.actions);
   return rowToAction(res.rows[0]);
 }
 
@@ -404,12 +455,14 @@ export async function updateAction(
   if (res.rows.length === 0) {
     throw new Error(`Aktion nicht gefunden (id=${id}).`);
   }
+  revalidateTag(TAGS.actions);
   return rowToAction(res.rows[0]);
 }
 
 export async function deleteAction(id: string): Promise<void> {
   await ensureSchema();
   await sql`DELETE FROM actions WHERE id = ${id};`;
+  revalidateTag(TAGS.actions);
 }
 
 // ---------- PARTNER ----------
@@ -441,12 +494,15 @@ function rowToBoard(r: any): BoardMemberItem {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-export async function getPartners(): Promise<PartnerItem[]> {
-  if (!isDbConfigured()) return seedPartners.map((p, i) => ({ ...p, sortOrder: i })) as PartnerItem[];
-  await ensureSchema();
-  const { rows } = await sql`SELECT * FROM partners ORDER BY sort_order ASC, name ASC;`;
-  return rows.map(rowToPartner);
-}
+export const getPartners = unstable_cache(
+  async (): Promise<PartnerItem[]> => {
+    if (!isDbConfigured()) return seedPartners.map((p, i) => ({ ...p, sortOrder: i })) as PartnerItem[];
+    const { rows } = await readQuery(() => sql`SELECT * FROM partners ORDER BY sort_order ASC, name ASC;`);
+    return rows.map(rowToPartner);
+  },
+  ["partners"],
+  { revalidate: PUBLIC_REVALIDATE, tags: [TAGS.partners] }
+);
 
 export async function createPartner(input: Omit<PartnerItem, "id" | "sortOrder">): Promise<PartnerItem> {
   await ensureSchema();
@@ -458,6 +514,7 @@ export async function createPartner(input: Omit<PartnerItem, "id" | "sortOrder">
             ${input.phone ?? null}, ${input.email ?? null}, ${input.website ?? null}, ${input.discount ?? null}, ${mx[0].next})
     RETURNING *;
   `;
+  revalidateTag(TAGS.partners);
   return rowToPartner(res.rows[0]);
 }
 
@@ -472,12 +529,14 @@ export async function updatePartner(id: string, input: Omit<PartnerItem, "id" | 
     RETURNING *;
   `;
   if (res.rows.length === 0) throw new Error(`Partner nicht gefunden (id=${id}).`);
+  revalidateTag(TAGS.partners);
   return rowToPartner(res.rows[0]);
 }
 
 export async function deletePartner(id: string): Promise<void> {
   await ensureSchema();
   await sql`DELETE FROM partners WHERE id = ${id};`;
+  revalidateTag(TAGS.partners);
 }
 
 export async function reorderPartners(orderedIds: string[]): Promise<void> {
@@ -485,16 +544,20 @@ export async function reorderPartners(orderedIds: string[]): Promise<void> {
   for (let i = 0; i < orderedIds.length; i++) {
     await sql`UPDATE partners SET sort_order = ${i} WHERE id = ${orderedIds[i]};`;
   }
+  revalidateTag(TAGS.partners);
 }
 
 // ---------- VORSTAND ----------
 
-export async function getBoard(): Promise<BoardMemberItem[]> {
-  if (!isDbConfigured()) return seedBoard.map((b, i) => ({ id: `brd_${i}`, ...b, sortOrder: i })) as BoardMemberItem[];
-  await ensureSchema();
-  const { rows } = await sql`SELECT * FROM board_members ORDER BY sort_order ASC;`;
-  return rows.map(rowToBoard);
-}
+export const getBoard = unstable_cache(
+  async (): Promise<BoardMemberItem[]> => {
+    if (!isDbConfigured()) return seedBoard.map((b, i) => ({ id: `brd_${i}`, ...b, sortOrder: i })) as BoardMemberItem[];
+    const { rows } = await readQuery(() => sql`SELECT * FROM board_members ORDER BY sort_order ASC;`);
+    return rows.map(rowToBoard);
+  },
+  ["board"],
+  { revalidate: PUBLIC_REVALIDATE, tags: [TAGS.board] }
+);
 
 export async function createBoardMember(input: Omit<BoardMemberItem, "id" | "sortOrder">): Promise<BoardMemberItem> {
   await ensureSchema();
@@ -505,6 +568,7 @@ export async function createBoardMember(input: Omit<BoardMemberItem, "id" | "sor
     VALUES (${id}, ${input.name}, ${input.role ?? ""}, ${input.description ?? null}, ${input.imageUrl ?? null}, ${mx[0].next})
     RETURNING *;
   `;
+  revalidateTag(TAGS.board);
   return rowToBoard(res.rows[0]);
 }
 
@@ -518,12 +582,14 @@ export async function updateBoardMember(id: string, input: Omit<BoardMemberItem,
     RETURNING *;
   `;
   if (res.rows.length === 0) throw new Error(`Vorstandsmitglied nicht gefunden (id=${id}).`);
+  revalidateTag(TAGS.board);
   return rowToBoard(res.rows[0]);
 }
 
 export async function deleteBoardMember(id: string): Promise<void> {
   await ensureSchema();
   await sql`DELETE FROM board_members WHERE id = ${id};`;
+  revalidateTag(TAGS.board);
 }
 
 export async function reorderBoard(orderedIds: string[]): Promise<void> {
@@ -531,14 +597,17 @@ export async function reorderBoard(orderedIds: string[]): Promise<void> {
   for (let i = 0; i < orderedIds.length; i++) {
     await sql`UPDATE board_members SET sort_order = ${i} WHERE id = ${orderedIds[i]};`;
   }
+  revalidateTag(TAGS.board);
 }
 
 // ---------- ADMIN-BENUTZER ----------
 
 export async function verifyLogin(username: string, password: string): Promise<AdminUser | null> {
   if (!isDbConfigured()) return null;
+  // Beim Login erstmalig das Schema sicherstellen (legt bei Erstnutzung die
+  // Admin-Benutzer an). Danach greift readQuery als Selbstheilung.
   await ensureSchema();
-  const { rows } = await sql`SELECT * FROM admin_users WHERE username = ${username};`;
+  const { rows } = await readQuery(() => sql`SELECT * FROM admin_users WHERE username = ${username};`);
   if (rows.length === 0) return null;
   const h = await hashPassword(password);
   if (h !== rows[0].password_hash) return null;
@@ -546,15 +615,13 @@ export async function verifyLogin(username: string, password: string): Promise<A
 }
 
 export async function getAdminUsers(): Promise<AdminUser[]> {
-  await ensureSchema();
-  const { rows } = await sql`SELECT username, name, role FROM admin_users ORDER BY role DESC, username ASC;`;
+  const { rows } = await readQuery(() => sql`SELECT username, name, role FROM admin_users ORDER BY role DESC, username ASC;`);
   return rows.map((r) => ({ username: r.username, name: r.name || "", role: r.role as AdminRole }));
 }
 
 export async function getAdminRole(username: string): Promise<AdminRole | null> {
   if (!isDbConfigured()) return null;
-  await ensureSchema();
-  const { rows } = await sql`SELECT role FROM admin_users WHERE username = ${username};`;
+  const { rows } = await readQuery(() => sql`SELECT role FROM admin_users WHERE username = ${username};`);
   return rows.length ? (rows[0].role as AdminRole) : null;
 }
 
@@ -605,8 +672,7 @@ export async function deleteAdminUser(username: string): Promise<void> {
 
 export async function getSetting(key: string): Promise<string | null> {
   if (!isDbConfigured()) return null;
-  await ensureSchema();
-  const { rows } = await sql`SELECT value FROM app_settings WHERE key = ${key};`;
+  const { rows } = await readQuery(() => sql`SELECT value FROM app_settings WHERE key = ${key};`);
   return rows.length ? rows[0].value : null;
 }
 
@@ -616,15 +682,22 @@ export async function setSetting(key: string, value: string): Promise<void> {
     INSERT INTO app_settings (key, value) VALUES (${key}, ${value})
     ON CONFLICT (key) DO UPDATE SET value = ${value};
   `;
+  revalidateTag(TAGS.settings);
 }
 
-export async function getMaintenance(): Promise<boolean> {
-  try {
-    return (await getSetting("maintenance")) === "true";
-  } catch {
-    return false;
-  }
-}
+// Gecacht: wird im Layout bei jedem Seitenaufruf gelesen. setSetting/setMaintenance
+// lösen über den "settings"-Tag sofort eine Aktualisierung aus.
+export const getMaintenance = unstable_cache(
+  async (): Promise<boolean> => {
+    try {
+      return (await getSetting("maintenance")) === "true";
+    } catch {
+      return false;
+    }
+  },
+  ["maintenance"],
+  { revalidate: PUBLIC_REVALIDATE, tags: [TAGS.settings] }
+);
 
 export async function setMaintenance(on: boolean): Promise<void> {
   await setSetting("maintenance", on ? "true" : "false");
