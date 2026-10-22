@@ -154,29 +154,53 @@ export default async function Home() {
         </Link>
       </section>
 
-      {/* Mitglied werden */}
+      {/* Mitglied werden – hervorgehobener Call-to-Action */}
       <a
         href={membershipUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="glass-card p-5 lg:h-full flex items-center gap-4"
-        style={{ borderLeft: "4px solid var(--accent-hex)" }}
+        className="group glass-card lg:h-full p-6 flex flex-col justify-center gap-4 relative overflow-hidden text-white"
+        style={{
+          background:
+            "linear-gradient(135deg, var(--accent-hex) 0%, color-mix(in srgb, var(--accent-hex) 80%, #000) 100%)",
+          color: "var(--accent-foreground)",
+        }}
       >
-        <div
-          className="flex-shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center"
-          style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}
+        {/* dezentes Hintergrund-Icon */}
+        <svg
+          className="absolute -right-6 -bottom-6 opacity-10"
+          width="150" height="150" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2} aria-hidden="true"
         >
-          <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+        </svg>
+
+        <div className="relative flex items-center gap-3">
+          <div
+            className="flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center"
+            style={{ background: "rgba(255,255,255,0.18)" }}
+          >
+            <svg width="26" height="26" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold tracking-tight">Mitglied werden</h2>
+        </div>
+
+        <p className="relative text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.9)" }}>
+          Werde Teil der DOC-Bern-Community: gemeinsame Ausfahrten, Events und
+          exklusive Vorteile bei unseren Partnern. Die Anmeldung läuft bequem
+          über das offizielle Ducati-Portal.
+        </p>
+
+        <span
+          className="relative inline-flex items-center gap-2 self-start px-4 py-2.5 rounded-xl text-sm font-bold transition-transform group-hover:translate-x-0.5"
+          style={{ background: "#ffffff", color: "var(--accent-hex)" }}
+        >
+          Jetzt beitreten
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5-5 5M5 12h13" />
           </svg>
-        </div>
-        <div className="flex-1 min-w-0">
-          <h2 className="font-semibold text-sm">Mitglied werden</h2>
-          <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-            Jetzt dem DOC Bern beitreten – Anmeldung über das Ducati-Portal.
-          </p>
-        </div>
-        <span className="text-sm font-semibold" style={{ color: "var(--accent-hex)" }}>→</span>
+        </span>
       </a>
       </div>
     </div>
