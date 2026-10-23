@@ -66,7 +66,7 @@ export default function NewsClient({ news }: { news: NewsItem[] }) {
           const isExpanded = expandedId === item.id;
           return (
             <article key={item.id} className="glass-card overflow-hidden" style={{ opacity: item.isArchived ? 0.72 : 1 }}>
-              {item.imageUrl && !isExpanded && (
+              {item.imageUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={item.imageUrl} alt={item.title} className="w-full h-40 object-cover" loading="lazy" />
               )}
@@ -94,10 +94,6 @@ export default function NewsClient({ news }: { news: NewsItem[] }) {
 
               {isExpanded && (
                 <div className="px-5 pb-5 border-t border-[color:var(--hairline)]">
-                  {item.imageUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.imageUrl} alt={item.title} className="w-full rounded-2xl mt-4 mb-3" loading="lazy" />
-                  )}
                   <div className="text-sm leading-relaxed pt-4 whitespace-pre-line" style={{ color: "var(--text-secondary)" }}>
                     {item.content}
                   </div>

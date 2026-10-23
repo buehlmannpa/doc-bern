@@ -86,7 +86,7 @@ function EventCard({
 }) {
   return (
     <article className="glass-card overflow-hidden" style={{ opacity: isPast ? 0.7 : 1 }}>
-      {event.imageUrl && !expanded && (
+      {event.imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={event.imageUrl} alt={event.title} className="w-full h-40 object-cover" loading="lazy" />
       )}
@@ -128,10 +128,6 @@ function EventCard({
 
       {expanded && (
         <div className="px-5 pb-5 border-t border-[color:var(--hairline)]">
-          {event.imageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={event.imageUrl} alt={event.title} className="w-full rounded-2xl mt-4 mb-3" loading="lazy" />
-          )}
           <p className="text-sm leading-relaxed pt-4 whitespace-pre-line" style={{ color: "var(--text-secondary)" }}>
             {event.description}
           </p>
