@@ -61,11 +61,11 @@ export default function NewsClient({ news }: { news: NewsItem[] }) {
         </p>
       )}
 
-      <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 lg:items-stretch">
+      <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 lg:items-start">
         {shown.map((item) => {
           const isExpanded = expandedId === item.id;
           return (
-            <article key={item.id} className="glass-card overflow-hidden lg:h-full flex flex-col" style={{ opacity: item.isArchived ? 0.72 : 1 }}>
+            <article key={item.id} className="glass-card overflow-hidden" style={{ opacity: item.isArchived ? 0.72 : 1 }}>
               {item.imageUrl && !isExpanded && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={item.imageUrl} alt={item.title} className="w-full h-40 object-cover" loading="lazy" />
