@@ -35,6 +35,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   // Läuft auf allen Seiten/Routen ausser statischen Assets.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|logo.png|logo.svg|manifest.json|images/).*)",
+    "/((?!_next/static|_next/image|favicon.ico|logo.png|logo.svg|apple-touch-icon.png|icon-512.png|manifest.json|images/).*)",
   ],
 };
