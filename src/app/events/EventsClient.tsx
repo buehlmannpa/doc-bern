@@ -86,10 +86,21 @@ function EventCard({
 }) {
   return (
     <article className="glass-card overflow-hidden" style={{ opacity: isPast ? 0.7 : 1 }}>
-      {event.imageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={event.imageUrl} alt={event.title} className="w-full h-40 object-cover" loading="lazy" />
-      )}
+      {/* Einheitliche Bildfläche: Bild oder dezenter Platzhalter -> gleich hohe Kacheln */}
+      <div className="w-full h-40 overflow-hidden">
+        {event.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={event.imageUrl} alt={event.title} className="w-full h-40 object-cover" loading="lazy" />
+        ) : (
+          <div
+            className="w-full h-40 flex items-center justify-center"
+            style={{ background: "linear-gradient(135deg, rgba(var(--accent),0.08) 0%, rgba(var(--accent),0.18) 100%)" }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="" className="h-16 w-16 object-contain opacity-30" />
+          </div>
+        )}
+      </div>
       <button onClick={onToggle} className="w-full text-left p-5">
         <div className="flex items-center gap-2 mb-2 flex-wrap">
           {isPast ? (
@@ -105,7 +116,7 @@ function EventCard({
           )}
           <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{formatDate(event.date)}</span>
         </div>
-        <h3 className="font-bold text-base mb-1">{event.title}</h3>
+        <h3 className="font-bold text-base mb-1 line-clamp-2 lg:min-h-[2.75rem]">{event.title}</h3>
         <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>
           <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />

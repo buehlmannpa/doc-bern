@@ -66,10 +66,21 @@ export default function NewsClient({ news }: { news: NewsItem[] }) {
           const isExpanded = expandedId === item.id;
           return (
             <article key={item.id} className="glass-card overflow-hidden" style={{ opacity: item.isArchived ? 0.72 : 1 }}>
-              {item.imageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.imageUrl} alt={item.title} className="w-full h-40 object-cover" loading="lazy" />
-              )}
+              {/* Einheitliche Bildfläche: Bild oder dezenter Platzhalter -> gleich hohe Kacheln */}
+              <div className="w-full h-40 overflow-hidden">
+                {item.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={item.imageUrl} alt={item.title} className="w-full h-40 object-cover" loading="lazy" />
+                ) : (
+                  <div
+                    className="w-full h-40 flex items-center justify-center"
+                    style={{ background: "linear-gradient(135deg, rgba(var(--accent),0.08) 0%, rgba(var(--accent),0.18) 100%)" }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/logo.png" alt="" className="h-16 w-16 object-contain opacity-30" />
+                  </div>
+                )}
+              </div>
               <button onClick={() => setExpandedId(isExpanded ? null : item.id)} className="w-full text-left p-5">
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <span className="tag text-[10px]" style={{ background: categoryColors[item.category], color: categoryTextColors[item.category] }}>
@@ -82,8 +93,8 @@ export default function NewsClient({ news }: { news: NewsItem[] }) {
                   )}
                   <span className="text-[11px]" style={{ color: "var(--text-secondary)" }}>{formatDate(item.publishedAt)}</span>
                 </div>
-                <h3 className="font-bold text-base mb-1">{item.title}</h3>
-                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{item.summary}</p>
+                <h3 className="font-bold text-base mb-1 line-clamp-2 lg:min-h-[2.75rem]">{item.title}</h3>
+                <p className="text-sm line-clamp-2 lg:min-h-[2.5rem]" style={{ color: "var(--text-secondary)" }}>{item.summary}</p>
                 <div className="flex items-center gap-1 mt-2 text-xs font-semibold" style={{ color: "var(--accent-hex)" }}>
                   {isExpanded ? "Weniger anzeigen" : "Weiterlesen"}
                   <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} className={`transition-transform ${isExpanded ? "rotate-180" : ""}`}>
