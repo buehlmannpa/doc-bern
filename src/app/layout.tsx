@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   title: "DOC Bern – Ducati Official Club Bern",
   description: "Die App des Ducati Official Club Bern. Events, News, Vorteile und Partner.",
   manifest: "/manifest.json",
+  icons: { icon: [{ url: "/favicon.ico", sizes: "any" }] },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

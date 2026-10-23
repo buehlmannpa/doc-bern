@@ -91,10 +91,10 @@ export default function BoardAdminPage() {
                 )}
                 <div className="min-w-0 flex-1">
                   <h3 className="font-semibold text-sm">{m.name}</h3>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--accent-hex)" }}>{m.role}</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--accent-text)" }}>{m.role}</p>
                 </div>
                 <div className="flex flex-col gap-1 flex-shrink-0">
-                  <button onClick={() => { setDraft({ ...m }); setError(""); }} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}>Bearbeiten</button>
+                  <button onClick={() => { setDraft({ ...m }); setError(""); }} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}>Bearbeiten</button>
                   <button onClick={() => remove(m.id)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(255,59,48,0.1)", color: "#ff3b30" }}>Löschen</button>
                 </div>
               </div>

@@ -99,7 +99,7 @@ export default function Sidebar() {
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors"
                 style={{
                   background: active ? "rgba(var(--accent), 0.1)" : "transparent",
-                  color: active ? "var(--accent-hex)" : "var(--text-primary)",
+                  color: active ? "var(--accent-text)" : "var(--text-primary)",
                 }}
               >
                 <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
