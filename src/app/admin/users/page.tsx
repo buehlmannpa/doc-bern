@@ -102,7 +102,7 @@ export default function UsersAdminPage() {
                   <h3 className="font-semibold text-sm">{u.name || u.username}</h3>
                   <span className="tag text-[10px]" style={{
                     background: u.role === "superadmin" ? "rgba(var(--accent), 0.12)" : "var(--field-bg)",
-                    color: u.role === "superadmin" ? "var(--accent-hex)" : "var(--text-secondary)",
+                    color: u.role === "superadmin" ? "var(--accent-text)" : "var(--text-secondary)",
                   }}>
                     {u.role === "superadmin" ? "Super-Admin" : "Admin"}
                   </span>
@@ -113,7 +113,7 @@ export default function UsersAdminPage() {
                 <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>@{u.username}</p>
               </div>
               <div className="flex flex-col gap-1 flex-shrink-0">
-                <button onClick={() => { setDraft({ username: u.username, name: u.name, role: u.role, password: "", isNew: false }); setError(""); }} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}>Bearbeiten</button>
+                <button onClick={() => { setDraft({ username: u.username, name: u.name, role: u.role, password: "", isNew: false }); setError(""); }} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}>Bearbeiten</button>
                 {u.username !== me.username && (
                   <button onClick={() => remove(u.username)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "rgba(255,59,48,0.1)", color: "#ff3b30" }}>Löschen</button>
                 )}

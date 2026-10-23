@@ -63,7 +63,7 @@ export default async function AdminDashboard() {
           <Link key={t.href} href={t.href} className="glass-card p-5 flex flex-col items-center text-center">
             <div
               className="w-12 h-12 rounded-2xl flex items-center justify-center mb-2"
-              style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}
+              style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}
             >
               <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
                 {icons[t.icon]}

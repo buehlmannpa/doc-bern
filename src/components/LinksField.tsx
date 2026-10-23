@@ -52,7 +52,7 @@ export default function LinksField({
         type="button"
         onClick={add}
         className="text-sm font-semibold"
-        style={{ color: "var(--accent-hex)" }}
+        style={{ color: "var(--accent-text)" }}
       >
         + Link hinzufügen
       </button>

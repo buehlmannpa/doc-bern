@@ -184,7 +184,7 @@ export default function NewsAdminPage() {
                   <button
                     onClick={() => { setDraft({ ...n }); setError(""); }}
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold"
-                    style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}
+                    style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}
                   >
                     Bearbeiten
                   </button>

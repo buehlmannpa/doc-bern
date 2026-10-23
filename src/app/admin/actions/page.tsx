@@ -90,7 +90,7 @@ export default function ActionsAdminPage() {
                 {a.discount && (
                   <div
                     className="flex-shrink-0 min-w-12 h-12 px-2 rounded-2xl flex items-center justify-center font-bold text-sm"
-                    style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}
+                    style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}
                   >
                     {a.discount}
                   </div>
@@ -105,7 +105,7 @@ export default function ActionsAdminPage() {
                     )}
                   </div>
                   {a.periodLabel && (
-                    <p className="text-[11px] mt-0.5" style={{ color: "var(--accent-hex)" }}>{a.periodLabel}</p>
+                    <p className="text-[11px] mt-0.5" style={{ color: "var(--accent-text)" }}>{a.periodLabel}</p>
                   )}
                   <p className="text-xs mt-0.5 line-clamp-2" style={{ color: "var(--text-secondary)" }}>{a.description}</p>
                 </div>
@@ -113,7 +113,7 @@ export default function ActionsAdminPage() {
                   <button
                     onClick={() => { setDraft({ ...a }); setError(""); }}
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold"
-                    style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}
+                    style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}
                   >
                     Bearbeiten
                   </button>

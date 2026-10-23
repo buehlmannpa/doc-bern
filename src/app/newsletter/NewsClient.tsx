@@ -13,7 +13,7 @@ const categoryColors: Record<string, string> = {
   interview: "rgba(0, 122, 255, 0.12)", update: "rgba(255, 149, 0, 0.12)",
 };
 const categoryTextColors: Record<string, string> = {
-  news: "rgb(var(--accent))", report: "#34c759", interview: "#007aff", update: "#ff9500",
+  news: "var(--accent-text)", report: "#34c759", interview: "#007aff", update: "#ff9500",
 };
 
 const PAGE_SIZE = 5;
@@ -84,7 +84,7 @@ export default function NewsClient({ news }: { news: NewsItem[] }) {
                 </div>
                 <h3 className={`font-bold text-base leading-6 mb-1 lg:min-h-12 ${isExpanded ? "" : "line-clamp-2"}`}>{item.title}</h3>
                 <p className={`text-sm leading-5 lg:min-h-[3.75rem] ${isExpanded ? "" : "line-clamp-3"}`} style={{ color: "var(--text-secondary)" }}>{item.summary}</p>
-                <div className="flex items-center gap-1 mt-2 text-xs font-semibold" style={{ color: "var(--accent-hex)" }}>
+                <div className="flex items-center gap-1 mt-2 text-xs font-semibold" style={{ color: "var(--accent-text)" }}>
                   {isExpanded ? "Weniger anzeigen" : "Weiterlesen"}
                   <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} className={`transition-transform ${isExpanded ? "rotate-180" : ""}`}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -103,7 +103,7 @@ export default function NewsClient({ news }: { news: NewsItem[] }) {
                       {item.links.map((link, i) => (
                         <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
                           className="block text-center text-sm font-semibold py-2.5 rounded-xl"
-                          style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}>
+                          style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}>
                           {link.label || link.url} →
                         </a>
                       ))}

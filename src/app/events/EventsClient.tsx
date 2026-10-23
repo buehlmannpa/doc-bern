@@ -98,7 +98,7 @@ function EventCard({
             </span>
           ) : (
             event.badge && (
-              <span className="tag text-[10px] flex-shrink-0" style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}>
+              <span className="tag text-[10px] flex-shrink-0" style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}>
                 {event.badge}
               </span>
             )
@@ -121,7 +121,7 @@ function EventCard({
             <span className={expanded ? "" : "line-clamp-2"}>{event.location}</span>
           </div>
         </div>
-        <div className="flex items-center gap-1 mt-2 text-xs font-semibold" style={{ color: "var(--accent-hex)" }}>
+        <div className="flex items-center gap-1 mt-2 text-xs font-semibold" style={{ color: "var(--accent-text)" }}>
           {expanded ? "Weniger anzeigen" : "Weiterlesen"}
           <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} className={`transition-transform ${expanded ? "rotate-180" : ""}`}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -147,7 +147,7 @@ function EventCard({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="block text-center text-sm font-semibold py-2.5 rounded-xl"
-                  style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}
+                  style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}
                 >
                   {link.label || link.url} →
                 </a>
