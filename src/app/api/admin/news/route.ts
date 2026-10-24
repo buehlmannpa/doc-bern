@@ -8,9 +8,18 @@ import {
   reorderNews,
   isDbConfigured,
 } from "@/lib/db";
-import type { NewsItem } from "@/lib/types";
+import type { NewsBlock, NewsItem } from "@/lib/types";
+import { blocksToPlainText, sanitizeBlocks } from "@/lib/blocks";
 
 export const dynamic = "force-dynamic";
+
+// Bausteine aus dem Request prüfen. undefined = nicht mitgeschickt (bestehende bleiben unverändert),
+// null = Bausteine entfernen. Ungültige Daten lösen einen verständlichen Fehler (400) aus.
+function parseBlocks(v: unknown): NewsBlock[] | null | undefined {
+  if (v === undefined) return undefined;
+  if (v === null) return null;
+  return sanitizeBlocks(v);
+}
 
 export async function GET() {
   try {
@@ -36,10 +45,19 @@ export async function POST(request: Request) {
     if (!body.title) {
       return NextResponse.json({ error: "Titel ist erforderlich." }, { status: 400 });
     }
+    let blocks: NewsBlock[] | null | undefined;
+    try {
+      blocks = parseBlocks((body as { blocks?: unknown }).blocks);
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 400 });
+    }
+    // Reiner Text zusätzlich in "content" ablegen (Rückfall, falls Bausteine einmal nicht verfügbar sind)
+    const content = blocks && blocks.length > 0 ? blocksToPlainText(blocks) : body.content || "";
     const item = await createNews({
       title: body.title,
       summary: body.summary || "",
-      content: body.content || "",
+      content,
+      blocks,
       imageUrl: body.imageUrl ?? null,
       links: body.links ?? [],
       category: body.category || "news",
@@ -64,10 +82,18 @@ export async function PUT(request: Request) {
     if (!body.id) {
       return NextResponse.json({ error: "Keine id angegeben." }, { status: 400 });
     }
+    let blocks: NewsBlock[] | null | undefined;
+    try {
+      blocks = parseBlocks((body as { blocks?: unknown }).blocks);
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 400 });
+    }
+    const content = blocks && blocks.length > 0 ? blocksToPlainText(blocks) : body.content || "";
     const item = await updateNews(body.id, {
       title: body.title,
       summary: body.summary || "",
-      content: body.content || "",
+      content,
+      blocks,
       imageUrl: body.imageUrl ?? null,
       links: body.links ?? [],
       category: body.category || "news",
