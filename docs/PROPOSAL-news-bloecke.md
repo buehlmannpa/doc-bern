@@ -229,13 +229,18 @@ man einfache Newsletter-artige Beiträge schreiben.
   - Editor-Komplexität → Bausteine einzeln und in kleinen Etappen, kein "alles auf einmal".
   - Alte Beiträge → werden nicht verändert, bis jemand sie bewusst bearbeitet.
 
-## 10. Entscheidungen, die ich von dir brauche
+## 10. Entscheidungen (getroffen)
 
-1. **Bausteine Etappe 1** wie oben, oder fehlt etwas Wichtiges / ist etwas zu viel?
-2. **Anzeige:** In der Kachel aufklappen (wie jetzt) oder später eine eigene Leseansicht?
-3. **Benachrichtigung** (Abschnitt 7): bewusst später klären?
-4. **Reihenfolge:** wie in Abschnitt 8, oder zuerst die Galerie?
-5. **Vorlagen:** welche 2 bis 3 Beitragsarten schreibt ihr am häufigsten?
-6. **Bildqualität:** Standard wie in 6b (empfohlen) oder noch stärker komprimieren?
-
-*Bereits entschieden: Video-Baustein entfällt. Laden erst beim Öffnen und stark verkleinerte Fotos sind eingeplant.*
+1. **Bausteine:** wie in Abschnitt 4. **Video entfällt.**
+2. **Anzeige:** Beitrag klappt **in der Kachel auf** (wie bisher). Eine eigene Leseansicht ist nicht geplant.
+3. **Benachrichtigung:** bewusst **als eigenes Feature später**. Ziel: Mitglieder, die die App auf dem
+   Home-Bildschirm gespeichert haben, erhalten eine Benachrichtigung bei neuen Beiträgen.
+4. **Etappen-Reihenfolge:** wie in Abschnitt 8. (Die Reihenfolge der Bausteine **innerhalb** eines Beitrags
+   ändert der Admin jederzeit im Editor mit den Pfeilen.)
+5. **Vorlagen:** Startvorschlag (wird beim Bau mit euch angepasst):
+   1. **Eventbericht:** Rückblick auf einen abgeschlossenen Event mit Text, Bildergalerie und optional Button
+      (gewünscht).
+   2. **Information / Newsletter:** Text, Hinweis-Box, Button.
+   3. **Einladung:** Text, Programm-Tabelle, Button "Anmelden".
+6. **Bildqualität:** Standard wie in 6b.
+7. **Laden erst beim Öffnen** und **stark verkleinerte Fotos** sind eingeplant.
