@@ -29,3 +29,9 @@ export async function deleteUnusedBlobs(urls: string[]): Promise<{ deleted: numb
     return { deleted: 0, failed: true };
   }
 }
+
+// Nach dem Speichern: Bilder löschen, die vorher im Eintrag waren und jetzt nicht mehr (ersetzt oder entfernt)
+export async function deleteReplacedBlobs(before: string[], after: string[]) {
+  const keep = new Set(after);
+  return deleteUnusedBlobs(before.filter((u) => !keep.has(u)));
+}

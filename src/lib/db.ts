@@ -477,6 +477,20 @@ export async function deleteNews(id: string): Promise<string[]> {
   return res.rows.flatMap((r) => collectImageUrls(r.image_url, r.blocks));
 }
 
+// Bildadressen, die ein Eintrag aktuell in der Datenbank hat (vor dem Speichern abfragen, um danach Ersetztes aufzuräumen)
+export async function getStoredImageUrls(kind: "news" | "events" | "board", id: string): Promise<string[]> {
+  await ensureSchema();
+  if (kind === "news") {
+    const r = await sql`SELECT image_url, blocks FROM news WHERE id = ${id};`;
+    return r.rows.flatMap((x) => collectImageUrls(x.image_url, x.blocks));
+  }
+  const r =
+    kind === "events"
+      ? await sql`SELECT image_url FROM events WHERE id = ${id};`
+      : await sql`SELECT image_url FROM board_members WHERE id = ${id};`;
+  return r.rows.flatMap((x) => (x.image_url ? [x.image_url as string] : []));
+}
+
 // Prüft, ob eine Bildadresse noch irgendwo verwendet wird (News, Events, Vorstand)
 export async function isImageStillUsed(url: string): Promise<boolean> {
   await ensureSchema();
@@ -692,10 +706,11 @@ export async function updateBoardMember(id: string, input: Omit<BoardMemberItem,
   return rowToBoard(res.rows[0]);
 }
 
-export async function deleteBoardMember(id: string): Promise<void> {
+export async function deleteBoardMember(id: string): Promise<string[]> {
   await ensureSchema();
-  await sql`DELETE FROM board_members WHERE id = ${id};`;
+  const res = await sql`DELETE FROM board_members WHERE id = ${id} RETURNING image_url;`;
   revalidateTag(TAGS.board);
+  return res.rows.flatMap((r) => (r.image_url ? [r.image_url as string] : []));
 }
 
 export async function reorderBoard(orderedIds: string[]): Promise<void> {

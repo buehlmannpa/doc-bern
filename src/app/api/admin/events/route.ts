@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createEvent, getEvents, updateEvent, deleteEvent, isDbConfigured } from "@/lib/db";
 import { currentUsername } from "@/lib/session";
 import type { EventItem } from "@/lib/types";
-import { deleteUnusedBlobs } from "@/lib/blob-cleanup";
+import { deleteUnusedBlobs, deleteReplacedBlobs } from "@/lib/blob-cleanup";
+import { getStoredImageUrls } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,7 @@ export async function PUT(request: Request) {
     if (!body.id) {
       return NextResponse.json({ error: "Keine id angegeben." }, { status: 400 });
     }
+    const before = await getStoredImageUrls("events", body.id);
     const event = await updateEvent(body.id, {
       title: body.title,
       date: body.date,
@@ -72,6 +74,7 @@ export async function PUT(request: Request) {
       publishAt: body.publishAt || new Date().toISOString(),
       updatedBy: await currentUsername(),
     });
+    await deleteReplacedBlobs(before, event.imageUrl ? [event.imageUrl] : []);
     return NextResponse.json({ event });
   } catch (e) {
     return NextResponse.json(

@@ -10,7 +10,9 @@ import {
 } from "@/lib/db";
 import type { NewsBlock, NewsItem } from "@/lib/types";
 import { blocksToPlainText, sanitizeBlocks } from "@/lib/blocks";
-import { deleteUnusedBlobs } from "@/lib/blob-cleanup";
+import { deleteUnusedBlobs, deleteReplacedBlobs } from "@/lib/blob-cleanup";
+import { getStoredImageUrls } from "@/lib/db";
+import { collectImageUrls } from "@/lib/blocks";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +92,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: (e as Error).message }, { status: 400 });
     }
     const content = blocks && blocks.length > 0 ? blocksToPlainText(blocks) : body.content || "";
+    const before = await getStoredImageUrls("news", body.id);
     const item = await updateNews(body.id, {
       title: body.title,
       summary: body.summary || "",
@@ -103,6 +106,7 @@ export async function PUT(request: Request) {
       status: body.status === "draft" ? "draft" : "published",
       updatedBy: await currentUsername(),
     });
+    await deleteReplacedBlobs(before, collectImageUrls(item.imageUrl, item.blocks));
     return NextResponse.json({ item });
   } catch (e) {
     return NextResponse.json(
