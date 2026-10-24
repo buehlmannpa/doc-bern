@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import AdminNav from "@/components/AdminNav";
 import ImageField from "@/components/ImageField";
-import LinksField from "@/components/LinksField";
-import type { NewsItem, NewsCategory, EventLink } from "@/lib/types";
+import BlocksEditor from "@/components/BlocksEditor";
+import { dropEmptyBlocks, legacyToBlocks, sanitizeBlocks } from "@/lib/blocks";
+import type { NewsItem, NewsCategory, NewsBlock } from "@/lib/types";
 
 type Draft = Omit<NewsItem, "id" | "sortOrder"> & { id?: string };
 
@@ -14,6 +15,7 @@ const emptyDraft: Draft = {
   content: "",
   imageUrl: null,
   links: [],
+  blocks: [],
   category: "news",
   isArchived: false,
   publishedAt: new Date().toISOString(),
@@ -47,6 +49,25 @@ export default function NewsAdminPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [editorKey, setEditorKey] = useState(0); // neuer Schlüssel = Editor wird frisch aufgebaut
+  const [legacyNote, setLegacyNote] = useState(false);
+
+  function openNew() {
+    setDraft({ ...emptyDraft, publishedAt: new Date().toISOString() });
+    setLegacyNote(false);
+    setEditorKey((k) => k + 1);
+    setError("");
+  }
+
+  // Alte Beiträge (nur Text + Links) werden beim Bearbeiten in Bausteine umgewandelt.
+  function openEdit(n: NewsItem) {
+    const hasBlocks = Boolean(n.blocks && n.blocks.length > 0);
+    const blocks: NewsBlock[] = hasBlocks ? (n.blocks as NewsBlock[]) : legacyToBlocks(n.content, n.links);
+    setDraft({ ...n, blocks });
+    setLegacyNote(!hasBlocks && blocks.length > 0);
+    setEditorKey((k) => k + 1);
+    setError("");
+  }
 
   async function load() {
     setLoading(true);
@@ -66,13 +87,24 @@ export default function NewsAdminPage() {
       setError("Titel ist erforderlich.");
       return;
     }
+    // Leere Bausteine entfernen und die übrigen prüfen, bevor etwas gesendet wird
+    let blocks: NewsBlock[];
+    try {
+      blocks = sanitizeBlocks(dropEmptyBlocks(draft.blocks ?? []));
+    } catch (e) {
+      setError((e as Error).message);
+      return;
+    }
     setSaving(true);
     setError("");
     const isEdit = Boolean(draft.id);
+    // Inhalt steckt jetzt in den Bausteinen: Der Server schreibt den Klartext selbst nach "content".
+    // Die alte Link-Liste ist in Button-Bausteine umgewandelt und entfällt.
+    const payload = { ...draft, blocks, content: "", links: [] };
     const res = await fetch("/api/admin/news", {
       method: isEdit ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(draft),
+      body: JSON.stringify(payload),
     });
     setSaving(false);
     if (res.ok) {
@@ -109,7 +141,7 @@ export default function NewsAdminPage() {
       <div className="flex items-center justify-between mb-2 px-1">
         <h1 className="text-2xl font-bold tracking-tight">News</h1>
         <button
-          onClick={() => { setDraft({ ...emptyDraft, publishedAt: new Date().toISOString() }); setError(""); }}
+          onClick={openNew}
           className="px-4 py-2 rounded-xl text-sm font-semibold text-white"
           style={{ background: "var(--accent-hex)", color: "var(--accent-foreground)" }}
         >
@@ -182,7 +214,7 @@ export default function NewsAdminPage() {
                 </div>
                 <div className="flex flex-col gap-1 flex-shrink-0">
                   <button
-                    onClick={() => { setDraft({ ...n }); setError(""); }}
+                    onClick={() => openEdit(n)}
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold"
                     style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}
                   >
@@ -219,10 +251,6 @@ export default function NewsAdminPage() {
                 <textarea value={draft.summary} onChange={(e) => setDraft({ ...draft, summary: e.target.value })} rows={2} className={inputCls} />
               </label>
               <label className="block">
-                <span className="text-xs font-semibold block mb-1.5" style={{ color: "var(--text-secondary)" }}>Inhalt</span>
-                <textarea value={draft.content} onChange={(e) => setDraft({ ...draft, content: e.target.value })} rows={7} className={inputCls} />
-              </label>
-              <label className="block">
                 <span className="text-xs font-semibold block mb-1.5" style={{ color: "var(--text-secondary)" }}>Kategorie</span>
                 <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value as NewsCategory })} className={inputCls}>
                   {categoryOptions.map((c) => (
@@ -230,14 +258,24 @@ export default function NewsAdminPage() {
                   ))}
                 </select>
               </label>
-              <label className="block">
-                <span className="text-xs font-semibold block mb-1.5" style={{ color: "var(--text-secondary)" }}>Bild</span>
-                <ImageField value={draft.imageUrl} onChange={(url) => setDraft({ ...draft, imageUrl: url })} />
-              </label>
-              <label className="block">
-                <span className="text-xs font-semibold block mb-1.5" style={{ color: "var(--text-secondary)" }}>Links</span>
-                <LinksField links={draft.links} onChange={(links: EventLink[]) => setDraft({ ...draft, links })} />
-              </label>
+              <div>
+                <span className="text-xs font-semibold block mb-1.5" style={{ color: "var(--text-secondary)" }}>Titelbild</span>
+                <ImageField value={draft.imageUrl} onChange={(url) => setDraft((d) => (d ? { ...d, imageUrl: url } : d))} />
+              </div>
+              <div>
+                <span className="text-xs font-semibold block mb-1.5" style={{ color: "var(--text-secondary)" }}>Inhalt</span>
+                {legacyNote && (
+                  <p className="text-xs rounded-xl p-3 mb-3" style={{ background: "var(--surface-subtle)", color: "var(--text-secondary)" }}>
+                    Dieser Beitrag wurde mit dem alten Textfeld erstellt. Text und Links wurden in Bausteine umgewandelt.
+                    Beim Speichern wird das so übernommen.
+                  </p>
+                )}
+                <BlocksEditor
+                  key={editorKey}
+                  value={draft.blocks ?? []}
+                  onChange={(blocks) => setDraft((d) => (d ? { ...d, blocks } : d))}
+                />
+              </div>
               {/* Sichtbarkeit / Planung */}
               <div className="rounded-xl p-3" style={{ background: "var(--surface-subtle)" }}>
                 <span className="text-xs font-semibold block mb-2" style={{ color: "var(--text-secondary)" }}>Sichtbarkeit</span>

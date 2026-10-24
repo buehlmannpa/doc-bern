@@ -148,3 +148,46 @@ export function toNewsListItem(n: NewsItem): NewsListItem {
     hasContent: Boolean(content?.trim()) || (links?.length ?? 0) > 0 || (blocks?.length ?? 0) > 0,
   };
 }
+
+// Alter Beitrag (nur Text + Link-Liste) -> Bausteine. Wird beim ersten Bearbeiten im Editor angewendet.
+// Text wird bei Bedarf an Absatzgrenzen in mehrere Text-Bausteine geteilt (Längenlimit).
+export function legacyToBlocks(content: string, links: { label: string; url: string }[]): NewsBlock[] {
+  const blocks: NewsBlock[] = [];
+  let rest = (content || "").trim();
+  const max = LIMITS.text - 2000;
+  while (rest) {
+    if (rest.length <= max) { blocks.push({ type: "text", text: rest }); break; }
+    let cut = rest.lastIndexOf("\n\n", max);
+    if (cut < max / 2) cut = rest.lastIndexOf("\n", max);
+    if (cut < max / 2) cut = max;
+    blocks.push({ type: "text", text: rest.slice(0, cut).trim() });
+    rest = rest.slice(cut).trim();
+  }
+  for (const l of links || []) {
+    const url = (l.url || "").trim();
+    if (!isSafeHref(url)) continue; // unsichere Links wurden schon bisher nicht angezeigt
+    blocks.push({ type: "button", label: (l.label || "").trim() || url, url });
+  }
+  return blocks;
+}
+
+// Leere Bausteine vor dem Speichern entfernen (z. B. ein Textfeld, in das nichts geschrieben wurde).
+export function dropEmptyBlocks(blocks: NewsBlock[]): NewsBlock[] {
+  return blocks.filter((b) => {
+    switch (b.type) {
+      case "text":
+      case "callout":
+        return b.text.trim() !== "";
+      case "image":
+        return b.url.trim() !== "";
+      case "button":
+        return b.label.trim() !== "" || b.url.trim() !== ""; // halb ausgefüllt: Fehler beim Speichern zeigen
+      case "gallery":
+        return b.images.length > 0;
+      case "table":
+        return b.rows.some((r) => r.some((c) => c.trim() !== ""));
+      default:
+        return true; // Trennlinie
+    }
+  });
+}
