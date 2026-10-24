@@ -1,10 +1,17 @@
 import { upload } from "@vercel/blob/client";
+import { trackUpload } from "./upload-tracker";
 
 const TIMEOUT_MS = 60_000;
 
 // Lädt ein (bereits verkleinertes) Bild hoch und gibt die Adresse zurück.
 // 1) über unseren Server (kleine Dateien, am zuverlässigsten), 2) sonst direkt zu Vercel Blob.
 export async function uploadImage(file: File): Promise<string> {
+  const url = await uploadImageUntracked(file);
+  trackUpload(url);
+  return url;
+}
+
+async function uploadImageUntracked(file: File): Promise<string> {
   let serverError = "";
   if (file.size <= 4 * 1024 * 1024) {
     try {

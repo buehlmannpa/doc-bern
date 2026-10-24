@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AdminNav from "@/components/AdminNav";
+import { settleUploads } from "@/lib/upload-tracker";
 import ImageField from "@/components/ImageField";
 import type { BoardMemberItem } from "@/lib/types";
 
@@ -26,6 +27,11 @@ export default function BoardAdminPage() {
   }
   useEffect(() => { load(); }, []);
 
+  function closeDraft() {
+    void settleUploads([]);
+    setDraft(null);
+  }
+
   async function save() {
     if (!draft) return;
     if (!draft.name) { setError("Name ist erforderlich."); return; }
@@ -36,7 +42,7 @@ export default function BoardAdminPage() {
       body: JSON.stringify(draft),
     });
     setSaving(false);
-    if (res.ok) { setDraft(null); load(); }
+    if (res.ok) { await settleUploads(draft.imageUrl ? [draft.imageUrl] : []); setDraft(null); load(); }
     else { const d = await res.json().catch(() => ({})); setError(d.error || "Speichern fehlgeschlagen"); }
   }
 
@@ -104,11 +110,11 @@ export default function BoardAdminPage() {
       )}
 
       {draft && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center" style={{ background: "rgba(0,0,0,0.4)" }} onClick={() => setDraft(null)}>
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center" style={{ background: "rgba(0,0,0,0.4)" }} onClick={closeDraft}>
           <div className="glass-strong w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">{draft.id ? "Mitglied bearbeiten" : "Neues Mitglied"}</h2>
-              <button onClick={() => setDraft(null)} className="text-sm" style={{ color: "var(--text-secondary)" }}>Schliessen</button>
+              <button onClick={closeDraft} className="text-sm" style={{ color: "var(--text-secondary)" }}>Schliessen</button>
             </div>
             <div className="space-y-4">
               <label className="block">
@@ -130,7 +136,7 @@ export default function BoardAdminPage() {
             </div>
             {error && <p className="text-xs mt-3" style={{ color: "#ff3b30" }}>{error}</p>}
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setDraft(null)} className="flex-1 py-3 rounded-xl text-sm font-semibold" style={{ background: "var(--field-bg)" }}>Abbrechen</button>
+              <button onClick={closeDraft} className="flex-1 py-3 rounded-xl text-sm font-semibold" style={{ background: "var(--field-bg)" }}>Abbrechen</button>
               <button onClick={save} disabled={saving} className="flex-1 py-3 rounded-xl text-sm font-semibold disabled:opacity-60" style={{ background: "var(--accent-hex)", color: "var(--accent-foreground)" }}>{saving ? "Speichern…" : "Speichern"}</button>
             </div>
           </div>
