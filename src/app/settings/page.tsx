@@ -9,7 +9,7 @@ const themeOptions: { value: ThemeMode; label: string }[] = [
 ];
 
 export default function SettingsPage() {
-  const { accentIndex, setAccentIndex, colors, themeMode, setThemeMode } = useTheme();
+  const { themeMode, setThemeMode } = useTheme();
 
   return (
     <div className="space-y-6">
@@ -38,45 +38,6 @@ export default function SettingsPage() {
               </button>
             );
           })}
-        </div>
-      </section>
-
-      {/* Akzentfarbe */}
-      <section className="glass-card p-5">
-        <h2 className="font-bold text-base mb-1">Akzentfarbe</h2>
-        <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
-          Passe die Farbe der App an deinen Stil an.
-        </p>
-        <div className="grid grid-cols-5 gap-2">
-          {colors.map((color, i) => (
-            <button
-              key={color.name}
-              onClick={() => setAccentIndex(i)}
-              className="flex flex-col items-center gap-1.5"
-              aria-label={color.name}
-              aria-pressed={accentIndex === i}
-            >
-              <span
-                className="w-12 h-12 rounded-full transition-all flex items-center justify-center"
-                style={{
-                  background: color.hex,
-                  boxShadow:
-                    accentIndex === i
-                      ? `0 0 0 3px var(--bg-secondary), 0 0 0 5px ${color.hex}`
-                      : "none",
-                }}
-              >
-                {accentIndex === i && (
-                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={color.fg} strokeWidth={3} aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </span>
-              <span className="text-[10px] font-medium text-center leading-tight" style={{ color: "var(--text-secondary)" }}>
-                {color.name}
-              </span>
-            </button>
-          ))}
         </div>
       </section>
 

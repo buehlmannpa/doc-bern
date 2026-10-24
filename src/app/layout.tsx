@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   title: "DOC Bern – Ducati Official Club Bern",
   description: "Die App des Ducati Official Club Bern. Events, News, Vorteile und Partner.",
   manifest: "/manifest.json",
+  icons: { icon: [{ url: "/favicon.ico", sizes: "any" }] },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -32,9 +33,8 @@ export const viewport: Viewport = {
 
 // Setzt Theme + Akzentfarbe synchron vor dem ersten Paint (verhindert Flackern).
 const noFlashScript = `(function(){try{
-var accents=[["227, 6, 19","#e30613","#ffffff"],["30, 30, 30","#1e1e1e","#ffffff"],["120, 120, 128","#787880","#ffffff"],["255, 204, 0","#ffcc00","#1d1d1f"],["0, 122, 255","#007aff","#ffffff"]];
-var i=parseInt(localStorage.getItem('doc-bern-accent')||'0',10)||0;var c=accents[i]||accents[0];
-var r=document.documentElement;r.style.setProperty('--accent',c[0]);r.style.setProperty('--accent-hex',c[1]);r.style.setProperty('--accent-foreground',c[2]);
+var r=document.documentElement;
+r.style.setProperty('--accent','227, 6, 19');r.style.setProperty('--accent-hex','#e30613');r.style.setProperty('--accent-foreground','#ffffff');
 var m=localStorage.getItem('doc-bern-theme')||'auto';
 var dark=m==='dark'||(m==='auto'&&window.matchMedia('(prefers-color-scheme: dark)').matches);
 r.setAttribute('data-theme',dark?'dark':'light');
@@ -49,7 +49,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="de">
       <head>
-        <link rel="apple-touch-icon" href="/logo.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <script dangerouslySetInnerHTML={{ __html: noFlashScript }} />
       </head>
       <body>

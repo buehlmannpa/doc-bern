@@ -64,7 +64,7 @@ export default function BottomNav() {
               key={tab.href}
               href={tab.href}
               className="flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition-colors"
-              style={{ color: active ? "var(--accent-hex)" : "var(--text-secondary)" }}
+              style={{ color: active ? "var(--accent-text)" : "var(--text-secondary)" }}
             >
               {tab.icon}
               <span className="text-[10px] font-semibold">{tab.label}</span>

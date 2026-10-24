@@ -58,7 +58,7 @@ export default function ImageField({
       <div className="flex flex-col gap-2">
         <label
           className="text-sm font-semibold py-2.5 px-4 rounded-xl text-center cursor-pointer"
-          style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}
+          style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}
         >
           {uploading ? "Wird hochgeladen…" : value ? "Bild ersetzen" : "Bild hochladen"}
           <input type="file" accept="image/*" onChange={handleFile} className="hidden" disabled={uploading} />

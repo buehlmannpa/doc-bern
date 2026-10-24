@@ -9,6 +9,10 @@ type BoardListItem = { name: string; role: string; description?: string | null; 
 
 export const dynamic = "force-dynamic";
 
+// Desktop-Raster: Karte i liegt in Reihe i+2 (Reihe 1 = Überschriften).
+// Vollständige Klassennamen, damit Tailwind sie erkennt.
+const ROW_START = ["lg:row-start-2", "lg:row-start-3"];
+
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("de-CH", { day: "numeric", month: "short" });
 }
@@ -21,7 +25,7 @@ const categoryColors: Record<string, string> = {
   interview: "rgba(0, 122, 255, 0.12)", update: "rgba(255, 149, 0, 0.12)",
 };
 const categoryTextColors: Record<string, string> = {
-  news: "rgb(var(--accent))", report: "#34c759", interview: "#007aff", update: "#ff9500",
+  news: "var(--accent-text)", report: "#34c759", interview: "#007aff", update: "#ff9500",
 };
 
 export default async function Home() {
@@ -47,6 +51,11 @@ export default async function Home() {
 
   const latestNews = allNews.filter((n) => !n.isArchived).slice(0, 2);
 
+  // Heutiger Wochentag in Schweizer Zeit (der Server läuft in UTC).
+  const todayName = new Date().toLocaleDateString("de-CH", { weekday: "long", timeZone: "Europe/Zurich" });
+  const todayShop = hostettlerInfo.hoursShop.find((h) => h.day === todayName);
+  const todayWorkshop = hostettlerInfo.hoursWorkshop.find((h) => h.day === todayName);
+
   return (
     <div className="space-y-6">
       {/* Hero */}
@@ -58,64 +67,67 @@ export default async function Home() {
         </p>
       </section>
 
-      {/* Events + News (Desktop: 2 Spalten) */}
-      <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-6 lg:space-y-0">
-      {/* Anstehende Events */}
-      <section>
-        <div className="flex items-center justify-between mb-3 px-1">
+      {/* Events + News. Mobil: untereinander. Desktop: zwei Spalten, die Karten liegen
+          Reihe für Reihe auf einer Linie (Zeile 1 = Überschriften, danach je eine Karte
+          pro Spalte). Ein einzelnes Event ist so genau eine Kachel hoch und wird nicht
+          auf die Höhe mehrerer News-Karten gestreckt. */}
+      <div className="grid grid-cols-1 gap-y-3 lg:grid-cols-2 lg:gap-x-6">
+        {/* Anstehende Events */}
+        <div className="flex items-center justify-between px-1 lg:col-start-1 lg:row-start-1">
           <h2 className="text-lg font-bold tracking-tight">Anstehende Events</h2>
-          <Link href="/events" className="text-sm font-semibold" style={{ color: "var(--accent-hex)" }}>Alle →</Link>
+          <Link href="/events" className="text-sm font-semibold" style={{ color: "var(--accent-text)" }}>Alle →</Link>
         </div>
-        <div className="space-y-3">
-          {nextEvents.length === 0 && (
-            <p className="glass-card p-4 text-sm" style={{ color: "var(--text-secondary)" }}>
-              Zurzeit sind keine Events geplant.
-            </p>
-          )}
-          {nextEvents.map((event, i) => (
-            <Link key={event.id} href="/events" className={`glass-card p-4 flex gap-4 items-start${i >= 1 ? " hidden lg:flex" : ""}`}>
-              <div className="flex-shrink-0 w-12 h-12 rounded-2xl flex flex-col items-center justify-center" style={{ background: "rgba(var(--accent), 0.1)" }}>
-                <span className="text-xs font-bold" style={{ color: "var(--accent-hex)" }}>{formatDate(event.date).split(" ")[0]}</span>
-                <span className="text-[10px] font-semibold uppercase" style={{ color: "var(--accent-hex)" }}>{formatDate(event.date).split(" ")[1]}</span>
+        {nextEvents.length === 0 && (
+          <p className="glass-card p-4 text-sm lg:col-start-1 lg:row-start-2" style={{ color: "var(--text-secondary)" }}>
+            Zurzeit sind keine Events geplant.
+          </p>
+        )}
+        {nextEvents.map((event, i) => (
+          <Link
+            key={event.id}
+            href="/events"
+            className={`glass-card p-4 flex gap-4 items-start lg:items-center lg:col-start-1 ${ROW_START[i]}${i >= 1 ? " hidden lg:flex" : ""}`}
+          >
+            <div className="flex-shrink-0 w-12 h-12 rounded-2xl flex flex-col items-center justify-center" style={{ background: "rgba(var(--accent), 0.1)" }}>
+              <span className="text-xs font-bold" style={{ color: "var(--accent-text)" }}>{formatDate(event.date).split(" ")[0]}</span>
+              <span className="text-[10px] font-semibold uppercase" style={{ color: "var(--accent-text)" }}>{formatDate(event.date).split(" ")[1]}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-sm truncate">{event.title}</h3>
+                {event.badge && (
+                  <span className="tag text-[10px]" style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}>{event.badge}</span>
+                )}
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-sm truncate">{event.title}</h3>
-                  {event.badge && (
-                    <span className="tag text-[10px]" style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}>{event.badge}</span>
-                  )}
-                </div>
-                <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>{event.time} · {event.location}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
+              <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>{event.time} · {event.location}</p>
+            </div>
+          </Link>
+        ))}
 
-      {/* Aktuelle News */}
-      <section>
-        <div className="flex items-center justify-between mb-3 px-1">
+        {/* Aktuelle News */}
+        <div className="flex items-center justify-between px-1 mt-3 lg:mt-0 lg:col-start-2 lg:row-start-1">
           <h2 className="text-lg font-bold tracking-tight">Aktuelle News</h2>
-          <Link href="/newsletter" className="text-sm font-semibold" style={{ color: "var(--accent-hex)" }}>Alle →</Link>
+          <Link href="/newsletter" className="text-sm font-semibold" style={{ color: "var(--accent-text)" }}>Alle →</Link>
         </div>
-        <div className="space-y-3">
-          {latestNews.length === 0 && (
-            <p className="glass-card p-4 text-sm" style={{ color: "var(--text-secondary)" }}>Noch keine News.</p>
-          )}
-          {latestNews.map((item, i) => (
-            <Link key={item.id} href="/newsletter" className={`glass-card block overflow-hidden${i >= 1 ? " hidden lg:block" : ""}`}>
-              <div className="p-4">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="tag text-[10px]" style={{ background: categoryColors[item.category], color: categoryTextColors[item.category] }}>{categoryLabels[item.category]}</span>
-                  <span className="text-[10px]" style={{ color: "var(--text-secondary)" }}>{formatDate(item.publishedAt)}</span>
-                </div>
-                <h3 className="font-semibold text-sm">{item.title}</h3>
-                <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--text-secondary)" }}>{item.summary}</p>
+        {latestNews.length === 0 && (
+          <p className="glass-card p-4 text-sm lg:col-start-2 lg:row-start-2" style={{ color: "var(--text-secondary)" }}>Noch keine News.</p>
+        )}
+        {latestNews.map((item, i) => (
+          <Link
+            key={item.id}
+            href="/newsletter"
+            className={`glass-card block overflow-hidden lg:flex lg:flex-col lg:col-start-2 ${ROW_START[i]}${i >= 1 ? " hidden" : ""}`}
+          >
+            <div className="p-4 lg:flex-1 lg:flex lg:flex-col lg:justify-center">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="tag text-[10px]" style={{ background: categoryColors[item.category], color: categoryTextColors[item.category] }}>{categoryLabels[item.category]}</span>
+                <span className="text-[10px]" style={{ color: "var(--text-secondary)" }}>{formatDate(item.publishedAt)}</span>
               </div>
-            </Link>
-          ))}
-        </div>
-      </section>
+              <h3 className="font-semibold text-sm">{item.title}</h3>
+              <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--text-secondary)" }}>{item.summary}</p>
+            </div>
+          </Link>
+        ))}
       </div>
 
       {/* Vorstand stellt sich vor */}
@@ -129,13 +141,13 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* hostettler + Mitglied werden (Desktop: 2 Spalten) */}
-      <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-6 lg:space-y-0 lg:items-start">
+      {/* hostettler + Mitglied werden (Desktop: 2 Spalten, gleiche Höhe) */}
+      <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-6 lg:space-y-0 lg:items-stretch">
       {/* hostettler Quick Info */}
-      <section className="glass-card p-5">
+      <section className="glass-card p-5 lg:h-full lg:flex lg:flex-col">
         <h2 className="font-bold text-base mb-3">{hostettlerInfo.name}</h2>
         <div className="space-y-2.5 text-sm">
-          <a href={`tel:${hostettlerInfo.phone}`} className="flex items-center gap-3" style={{ color: "var(--accent-hex)" }}>
+          <a href={`tel:${hostettlerInfo.phone}`} className="flex items-center gap-3" style={{ color: "var(--accent-text)" }}>
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
             </svg>
@@ -149,34 +161,77 @@ export default async function Home() {
             {hostettlerInfo.address}
           </a>
         </div>
-        <Link href="/partners" className="mt-3 block text-center text-sm font-semibold py-2.5 rounded-xl" style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}>
+
+        {/* Heute geöffnet – nur Desktop: füllt die auf gleiche Höhe gestreckte Box sinnvoll */}
+        {(todayShop || todayWorkshop) && (
+          <div className="hidden lg:block mt-3 mb-3 rounded-xl p-2.5 space-y-1 text-xs" style={{ background: "var(--surface-subtle)" }} title={`Öffnungszeiten heute (${todayName})`}>
+            {[["Shop", todayShop], ["Werkstatt", todayWorkshop]].map(([label, h]) => {
+              const hours = h as { day: string; time: string } | undefined;
+              const closed = !hours || hours.time === "Geschlossen";
+              return (
+                <div key={label as string} className="flex justify-between gap-3">
+                  <span style={{ color: "var(--text-secondary)" }}>{label as string} heute</span>
+                  <span className="text-right font-semibold" style={{ color: closed ? "var(--text-secondary)" : "var(--text-primary)" }}>
+                    {closed ? "Geschlossen" : hours.time}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <Link href="/partners" className="mt-3 lg:mt-auto block text-center text-sm font-semibold py-2.5 rounded-xl" style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}>
           Zum Vertragshändler & Partnern →
         </Link>
       </section>
 
-      {/* Mitglied werden */}
+      {/* Mitglied werden – hervorgehobener Call-to-Action */}
       <a
         href={membershipUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="glass-card p-4 flex items-center gap-4"
-        style={{ borderLeft: "4px solid var(--accent-hex)" }}
+        className="group glass-card lg:h-full p-6 flex flex-col justify-center gap-4 relative overflow-hidden text-white"
+        style={{
+          background:
+            "linear-gradient(135deg, var(--accent-hex) 0%, color-mix(in srgb, var(--accent-hex) 80%, #000) 100%)",
+          color: "var(--accent-foreground)",
+        }}
       >
-        <div
-          className="flex-shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center"
-          style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}
+        {/* dezentes Hintergrund-Icon */}
+        <svg
+          className="absolute -right-6 -bottom-6 opacity-10"
+          width="150" height="150" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2} aria-hidden="true"
         >
-          <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+        </svg>
+
+        <div className="relative flex items-center gap-3">
+          <div
+            className="flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center"
+            style={{ background: "rgba(255,255,255,0.18)" }}
+          >
+            <svg width="26" height="26" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold tracking-tight">Mitglied werden</h2>
+        </div>
+
+        <p className="relative text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.9)" }}>
+          Werde Teil der DOC-Bern-Community: gemeinsame Ausfahrten, Events und
+          exklusive Vorteile bei unseren Partnern. Die Anmeldung läuft bequem
+          über das offizielle Ducati-Portal.
+        </p>
+
+        <span
+          className="relative inline-flex items-center gap-2 self-start px-4 py-2.5 rounded-xl text-sm font-bold transition-transform group-hover:translate-x-0.5"
+          style={{ background: "#ffffff", color: "var(--accent-hex)" }}
+        >
+          Jetzt beitreten
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5-5 5M5 12h13" />
           </svg>
-        </div>
-        <div className="flex-1 min-w-0">
-          <h2 className="font-semibold text-sm">Mitglied werden</h2>
-          <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-            Jetzt dem DOC Bern beitreten – Anmeldung über das Ducati-Portal.
-          </p>
-        </div>
-        <span className="text-sm font-semibold" style={{ color: "var(--accent-hex)" }}>→</span>
+        </span>
       </a>
       </div>
     </div>

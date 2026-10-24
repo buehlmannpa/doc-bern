@@ -95,6 +95,21 @@ export default function EventsAdminPage() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // Reihenfolge: zuerst Entwürfe, dann anstehende Events (aufsteigend),
+  // zuunterst die vergangenen (neueste zuerst).
+  const groupOf = (ev: EventItem) => {
+    if (ev.status === "draft") return 0;
+    return new Date(ev.date) < today ? 2 : 1;
+  };
+  const sortedEvents = [...events].sort((a, b) => {
+    const ga = groupOf(a);
+    const gb = groupOf(b);
+    if (ga !== gb) return ga - gb;
+    const da = new Date(a.date).getTime();
+    const db = new Date(b.date).getTime();
+    return ga === 2 ? db - da : da - db; // vergangene absteigend, sonst aufsteigend
+  });
+
   return (
     <div>
       <AdminNav />
@@ -118,7 +133,7 @@ export default function EventsAdminPage() {
               Noch keine Events. Erstelle das erste!
             </p>
           )}
-          {events.map((ev) => {
+          {sortedEvents.map((ev) => {
             const isPast = new Date(ev.date) < today;
             return (
               <div key={ev.id} className="glass-card p-4">
@@ -155,7 +170,7 @@ export default function EventsAdminPage() {
                     <button
                       onClick={() => { setDraft({ ...ev, badge: ev.badge || "" }); setError(""); }}
                       className="px-3 py-1.5 rounded-lg text-xs font-semibold"
-                      style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}
+                      style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}
                     >
                       Bearbeiten
                     </button>

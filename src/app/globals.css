@@ -4,6 +4,8 @@
   --accent: 227, 6, 19;
   --accent-hex: #e30613;
   --accent-foreground: #ffffff;
+  /* Roter TEXT auf Flächen (Links, Tags, Zahlen). Hell = Ducati-Rot unverändert. */
+  --accent-text: var(--accent-hex);
 
   --bg-primary: #ffffff;
   --bg-secondary: #f5f5f7;
@@ -28,6 +30,11 @@
 }
 
 :root[data-theme="dark"] {
+  /* Gleicher Ducati-Rot-Farbton (357°), nur heller (Lightness ~60 %), damit roter
+     Text auf dunklem Grund gut lesbar ist (Kontrast >= 4.5:1). Flächen/Buttons
+     bleiben im originalen Ducati-Rot (--accent-hex). */
+  --accent-text: #ff3340;
+
   --bg-primary: #1c1c1e;
   --bg-secondary: #000000;
   --bg-tertiary: #1c1c1e;

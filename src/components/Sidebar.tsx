@@ -54,7 +54,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const taps = useRef<{ count: number; last: number }>({ count: 0, last: 0 });
-  const { accentIndex, setAccentIndex, colors, themeMode, setThemeMode } = useTheme();
+  const { themeMode, setThemeMode } = useTheme();
 
   function handleWordmarkTap() {
     const now = Date.now();
@@ -99,7 +99,7 @@ export default function Sidebar() {
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors"
                 style={{
                   background: active ? "rgba(var(--accent), 0.1)" : "transparent",
-                  color: active ? "var(--accent-hex)" : "var(--text-primary)",
+                  color: active ? "var(--accent-text)" : "var(--text-primary)",
                 }}
               >
                 <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
@@ -136,29 +136,6 @@ export default function Sidebar() {
               </button>
             );
           })}
-        </div>
-
-        {/* Akzentfarbe */}
-        <div className="flex items-center justify-between">
-          {colors.map((color, i) => (
-            <button
-              key={color.name}
-              onClick={() => setAccentIndex(i)}
-              aria-label={color.name}
-              aria-pressed={accentIndex === i}
-              className="w-7 h-7 rounded-full flex items-center justify-center transition-all"
-              style={{
-                background: color.hex,
-                boxShadow: accentIndex === i ? `0 0 0 2px var(--bg-secondary), 0 0 0 4px ${color.hex}` : "none",
-              }}
-            >
-              {accentIndex === i && (
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke={color.fg} strokeWidth={3} aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-            </button>
-          ))}
         </div>
       </div>
     </aside>

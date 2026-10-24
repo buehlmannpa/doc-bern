@@ -112,7 +112,7 @@ export default function AddToCalendar({ event }: { event: EventItem }) {
           onClick={() => setOpen((o) => !o)}
           aria-label="Weitere Kalender-Optionen"
           className="px-3 rounded-xl text-sm font-semibold"
-          style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-hex)" }}
+          style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}
         >
           ⋯
         </button>
