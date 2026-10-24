@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import type { CalloutTone, NewsBlock } from "@/lib/types";
 import { dropEmptyBlocks, isSafeHref } from "@/lib/blocks";
 import ImageField from "./ImageField";
+import { LIMITS } from "@/lib/blocks";
+import { resizeImage } from "@/lib/image-resize";
+import { uploadImage } from "@/lib/upload-image";
 
 // Editor für die Bausteine eines News-Beitrags.
 // Jeder Baustein ist eine Karte mit Pfeilen (verschieben) und ✕ (entfernen). Neue Bausteine
-// kommen über die Auswahl unten dazu. Baustein-Typen, die noch keinen Editor haben (Galerie,
-// Tabelle), bleiben beim Bearbeiten unverändert erhalten.
+// kommen über die Auswahl unten dazu.
 
 type Entry = { key: string; block: NewsBlock };
 type Patch = (partial: Record<string, unknown>) => void;
@@ -19,11 +21,13 @@ const newKey = () => `blk${Date.now().toString(36)}${seq++}`;
 const inputCls = "w-full px-3 py-2.5 rounded-xl text-sm outline-none bg-black/[0.04]";
 const labelCls = "text-xs font-semibold block mb-1.5";
 
-type AddableType = "text" | "image" | "callout" | "button" | "divider";
+type AddableType = "text" | "image" | "gallery" | "table" | "callout" | "button" | "divider";
 
 const ADDABLE: { type: AddableType; label: string; icon: string }[] = [
   { type: "text", label: "Text", icon: "T" },
   { type: "image", label: "Bild", icon: "▣" },
+  { type: "gallery", label: "Galerie", icon: "▦" },
+  { type: "table", label: "Tabelle", icon: "▤" },
   { type: "callout", label: "Hinweis", icon: "!" },
   { type: "button", label: "Button", icon: "◉" },
   { type: "divider", label: "Trennlinie", icon: "—" },
@@ -43,6 +47,8 @@ function emptyBlock(type: AddableType): NewsBlock {
   switch (type) {
     case "text": return { type: "text", text: "" };
     case "image": return { type: "image", url: "", caption: "" };
+    case "gallery": return { type: "gallery", images: [] };
+    case "table": return { type: "table", header: true, rows: [["", ""], ["", ""], ["", ""]] };
     case "callout": return { type: "callout", tone: "important", text: "" };
     case "button": return { type: "button", label: "", url: "" };
     default: return { type: "divider" };
@@ -198,22 +204,213 @@ function BlockBody({ block, patch }: { block: NewsBlock; patch: Patch }) {
       return <div className="h-px my-2" style={{ background: "var(--hairline)" }} aria-hidden="true" />;
 
     case "gallery":
-      const n = block.images.length;
-      return <Unsupported text={`${n} ${n === 1 ? "Bild" : "Bilder"}`} />;
+      return <GalleryEditor images={block.images} onChange={(images) => patch({ images })} />;
 
-    case "table": {
-      const cols = block.rows.reduce((m, r) => Math.max(m, r.length), 0);
-      return <Unsupported text={`${block.rows.length} ${block.rows.length === 1 ? "Zeile" : "Zeilen"} × ${cols} ${cols === 1 ? "Spalte" : "Spalten"}`} />;
-    }
+    case "table":
+      return <TableEditor header={block.header} rows={block.rows} onChange={(rows, header) => patch({ rows, header })} />;
   }
 }
 
-function Unsupported({ text }: { text: string }) {
+/* ───────────── Tabelle ───────────── */
+
+// Tabelle aus Excel/Sheets: Zellen sind durch Tabulator, Zeilen durch Zeilenumbruch getrennt
+export function parsePastedTable(text: string): string[][] {
+  const lines = text.replace(/\r\n?/g, "\n").replace(/\n+$/, "").split("\n");
+  const rows = lines.map((l) => l.split("\t").map((c) => c.trim().replace(/^"([\s\S]*)"$/, "$1")));
+  return rows.slice(0, LIMITS.tableRows).map((r) => r.slice(0, LIMITS.tableCols));
+}
+
+function TableEditor({ header, rows, onChange }: { header: boolean; rows: string[][]; onChange: (rows: string[][], header: boolean) => void }) {
+  const cols = Math.max(1, rows.reduce((m, r) => Math.max(m, r.length), 0));
+  const [paste, setPaste] = useState("");
+  const grid = rows.map((r) => [...r, ...Array(cols - r.length).fill("")]);
+
+  const setCell = (ri: number, ci: number, v: string) => onChange(grid.map((r, i) => (i === ri ? r.map((c, j) => (j === ci ? v : c)) : r)), header);
+  const addRow = () => onChange([...grid, Array(cols).fill("")], header);
+  const addCol = () => onChange(grid.map((r) => [...r, ""]), header);
+  const delRow = (ri: number) => onChange(grid.filter((_, i) => i !== ri), header);
+  const delCol = (ci: number) => onChange(grid.map((r) => r.filter((_, j) => j !== ci)), header);
+
+  function applyPaste(text: string) {
+    const parsed = parsePastedTable(text);
+    if (parsed.length === 0 || parsed.every((r) => r.every((c) => c === ""))) return;
+    const w = parsed.reduce((m, r) => Math.max(m, r.length), 0);
+    onChange(parsed.map((r) => [...r, ...Array(w - r.length).fill("")]), header);
+    setPaste("");
+  }
+
+  const mini = "px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-30";
+  const miniStyle = { background: "var(--field-bg)" };
+
   return (
-    <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-      {text}. Die Bearbeitung dieses Bausteins folgt in einer späteren Version. Er bleibt unverändert erhalten und lässt sich
-      verschieben oder entfernen.
-    </p>
+    <div className="space-y-3">
+      <div className="overflow-x-auto -mx-1 px-1">
+        <table className="text-sm border-separate" style={{ borderSpacing: 4 }}>
+          <tbody>
+            {grid.map((r, ri) => (
+              <tr key={ri}>
+                {r.map((c, ci) => (
+                  <td key={ci}>
+                    <input
+                      value={c}
+                      onChange={(e) => setCell(ri, ci, e.target.value)}
+                      aria-label={`Zeile ${ri + 1}, Spalte ${ci + 1}`}
+                      className={`${inputCls} min-w-[7rem] ${header && ri === 0 ? "font-bold" : ""}`}
+                    />
+                  </td>
+                ))}
+                <td>
+                  <button type="button" className="w-8 h-8 rounded-lg text-sm disabled:opacity-30" style={miniStyle} onClick={() => delRow(ri)} disabled={grid.length <= 1} aria-label={`Zeile ${ri + 1} entfernen`}>✕</button>
+                </td>
+              </tr>
+            ))}
+            <tr>
+              {Array.from({ length: cols }).map((_, ci) => (
+                <td key={ci} className="text-center">
+                  <button type="button" className="w-8 h-8 rounded-lg text-sm disabled:opacity-30" style={miniStyle} onClick={() => delCol(ci)} disabled={cols <= 1} aria-label={`Spalte ${ci + 1} entfernen`}>✕</button>
+                </td>
+              ))}
+              <td />
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className={mini} style={miniStyle} onClick={addRow} disabled={grid.length >= LIMITS.tableRows}>+ Zeile</button>
+        <button type="button" className={mini} style={miniStyle} onClick={addCol} disabled={cols >= LIMITS.tableCols}>+ Spalte</button>
+        <label className="flex items-center gap-2 text-xs font-semibold ml-auto">
+          <input type="checkbox" checked={header} onChange={(e) => onChange(grid, e.target.checked)} className="w-4 h-4" />
+          Erste Zeile ist Kopfzeile
+        </label>
+      </div>
+
+      <details className="rounded-xl p-3" style={{ background: "var(--surface-subtle)" }}>
+        <summary className="text-xs font-semibold cursor-pointer">Aus Excel einfügen</summary>
+        <p className="text-xs my-2" style={{ color: "var(--text-secondary)" }}>
+          In Excel die Zellen markieren und kopieren, dann hier einfügen. Die bisherige Tabelle wird ersetzt (max. {LIMITS.tableRows} Zeilen, {LIMITS.tableCols} Spalten).
+        </p>
+        <textarea
+          value={paste}
+          onChange={(e) => setPaste(e.target.value)}
+          onPaste={(e) => {
+            e.preventDefault();
+            applyPaste(e.clipboardData.getData("text"));
+          }}
+          rows={3}
+          aria-label="Tabelle aus Excel einfügen"
+          placeholder="Hier einfügen (Strg+V / Cmd+V)"
+          className={`${inputCls} resize-y`}
+        />
+        {paste.trim() !== "" && (
+          <button type="button" className={`${mini} mt-2`} style={{ background: "var(--accent-hex)", color: "var(--accent-foreground)" }} onClick={() => applyPaste(paste)}>
+            Tabelle übernehmen
+          </button>
+        )}
+      </details>
+    </div>
+  );
+}
+
+/* ───────────── Galerie ───────────── */
+
+type GImg = { url: string; thumbUrl?: string; caption?: string };
+
+// Aus einem Foto zwei Dateien machen: Vorschau (klein, für das Raster) und Grossansicht
+async function prepare(file: File): Promise<{ full: File; thumb: File }> {
+  const full = await resizeImage(file, { maxEdge: 1280, targetKb: 180 });
+  const thumb = await resizeImage(file, { maxEdge: 480, targetKb: 35 });
+  return { full, thumb };
+}
+
+function GalleryEditor({ images, onChange }: { images: GImg[]; onChange: (images: GImg[]) => void }) {
+  const [busy, setBusy] = useState("");
+  const [errors, setErrors] = useState<string[]>([]);
+  const latest = useRef(images);
+  latest.current = images;
+
+  async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.target;
+    const files = Array.from(input.files ?? []);
+    input.value = "";
+    if (files.length === 0) return;
+    setErrors([]);
+    const room = LIMITS.galleryImages - latest.current.length;
+    const errs: string[] = [];
+    if (files.length > room) errs.push(`Es passen höchstens ${LIMITS.galleryImages} Bilder in eine Galerie – ${files.length - Math.max(room, 0)} wurden nicht übernommen.`);
+    let done = 0;
+    for (const file of files.slice(0, Math.max(room, 0))) {
+      setBusy(`Bild ${done + 1} von ${Math.min(files.length, room)} wird verarbeitet…`);
+      try {
+        const { full, thumb } = await prepare(file);
+        const url = await uploadImage(full);
+        const thumbUrl = await uploadImage(thumb);
+        // Immer auf den aktuellen Stand aufsetzen (zwischenzeitlich kann etwas geändert worden sein)
+        onChange([...latest.current, { url, thumbUrl }]);
+        latest.current = [...latest.current, { url, thumbUrl }];
+      } catch (err) {
+        errs.push(`${file.name}: ${(err as Error).message}`);
+      }
+      done++;
+    }
+    setBusy("");
+    setErrors(errs);
+  }
+
+  const patchAt = (i: number, partial: Partial<GImg>) => onChange(images.map((im, k) => (k === i ? { ...im, ...partial } : im)));
+  const removeAt = (i: number) => onChange(images.filter((_, k) => k !== i));
+  const moveAt = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= images.length) return;
+    const next = [...images];
+    [next[i], next[j]] = [next[j], next[i]];
+    onChange(next);
+  };
+
+  const ctl = "w-8 h-8 rounded-lg text-sm disabled:opacity-30";
+  const ctlStyle = { background: "var(--field-bg)" };
+
+  return (
+    <div className="space-y-3">
+      {images.length > 0 && (
+        <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          {images.map((im, i) => (
+            <li key={`${im.url}-${i}`} className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--hairline)" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={im.thumbUrl || im.url} alt={im.caption || `Bild ${i + 1}`} className="w-full h-24 object-cover" />
+              <div className="p-1.5 space-y-1.5">
+                <input
+                  value={im.caption ?? ""}
+                  onChange={(e) => patchAt(i, { caption: e.target.value })}
+                  placeholder="Beschriftung"
+                  aria-label={`Beschriftung Bild ${i + 1}`}
+                  className="w-full px-2 py-1.5 rounded-lg text-xs outline-none bg-black/[0.04]"
+                />
+                <div className="flex gap-1 justify-between">
+                  <button type="button" className={ctl} style={ctlStyle} onClick={() => moveAt(i, -1)} disabled={i === 0} aria-label={`Bild ${i + 1} nach vorne`}>←</button>
+                  <button type="button" className={ctl} style={ctlStyle} onClick={() => moveAt(i, 1)} disabled={i === images.length - 1} aria-label={`Bild ${i + 1} nach hinten`}>→</button>
+                  <button type="button" className={ctl} style={ctlStyle} onClick={() => removeAt(i)} aria-label={`Bild ${i + 1} entfernen`}>✕</button>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <label
+        className="block text-sm font-semibold py-2.5 px-4 rounded-xl text-center cursor-pointer"
+        style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)", opacity: busy ? 0.6 : 1 }}
+      >
+        {busy || (images.length ? "Weitere Bilder hinzufügen" : "Bilder auswählen (mehrere möglich)")}
+        <input type="file" accept="image/*" multiple onChange={onFiles} className="hidden" disabled={Boolean(busy)} />
+      </label>
+      <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+        Die Bilder werden automatisch verkleinert{images.length ? ` (aktuell ${images.length} ${images.length === 1 ? "Bild" : "Bilder"})` : ""}.
+      </p>
+      {errors.map((m, i) => (
+        <p key={i} className="text-xs" style={{ color: "#ff3b30" }} role="alert">{m}</p>
+      ))}
+    </div>
   );
 }
 

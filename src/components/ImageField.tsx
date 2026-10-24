@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { upload } from "@vercel/blob/client";
+import { uploadImage } from "@/lib/upload-image";
 import { formatKb, resizeImage, type ResizeOptions } from "@/lib/image-resize";
 
 export default function ImageField({
@@ -30,14 +30,10 @@ export default function ImageField({
       const small = await resizeImage(file, { maxEdge, targetKb });
       setInfo(small === file ? "" : `Verkleinert: ${formatKb(file.size)} → ${formatKb(small.size)}`);
 
-      // 2) Direkter Upload vom Browser zu Vercel Blob (umgeht das 4.5-MB-Limit der Server-Functions)
+      // 2) Hochladen (kleine Dateien über den Server, sonst direkt zu Vercel Blob)
       setStatus("uploading");
-      const blob = await upload(small.name, small, {
-        access: "public",
-        handleUploadUrl: "/api/admin/upload",
-        contentType: small.type || undefined,
-      });
-      onChange(blob.url);
+      const url = await uploadImage(small);
+      onChange(url);
     } catch (err) {
       setInfo("");
       setError(
