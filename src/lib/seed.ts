@@ -1,4 +1,4 @@
-import type { EventItem, NewsItem } from "./types";
+import type { EventItem, NewsItem, NewsBlock } from "./types";
 
 // Fallback-Daten, falls noch keine Datenbank konfiguriert ist.
 // Sobald Vercel Postgres verbunden ist, werden diese Daten einmalig
@@ -80,3 +80,39 @@ export const seedNews: NewsItem[] = [
     status: "published",
   },
 ];
+
+// Beispielbeitrag mit Bausteinen – NUR für lokale Tests ohne Datenbank (DOC_DEMO_BLOCKS=1).
+// Wird nie in die Datenbank geschrieben und erscheint nie in Produktion.
+const demoBlocks: NewsBlock[] = [
+  { type: "text", text: "Liebe Mitglieder, was für ein **traumhafter Saisonstart**!\n\nAlle Details findest du auf der [Club-Seite](/).\n\n- Treffpunkt: Deisswil\n- Dauer: ca. 7 Stunden" },
+  { type: "callout", tone: "important", text: "**Wichtig:** Anmeldeschluss für die Ausfahrt vom 15. Juni ist der 30. Mai." },
+  { type: "text", text: "**Programm**" },
+  { type: "table", header: true, rows: [["Zeit", "Programmpunkt", "Ort"], ["09:00", "Treffpunkt & Kaffee", "Deisswil"], ["10:30", "Start Jaunpass", "Bern"], ["12:30", "Mittagessen", "Gruyères"], ["16:00", "Rückkehr", "Deisswil"]] },
+  { type: "gallery", images: [
+    { url: "/logo.png", thumbUrl: "/logo.png", caption: "Start" },
+    { url: "/icon-512.png", thumbUrl: "/icon-512.png", caption: "Pass" },
+    { url: "/apple-touch-icon.png", thumbUrl: "/apple-touch-icon.png", caption: "Pause" },
+    { url: "/logo.png", thumbUrl: "/logo.png", caption: "Gruppe" },
+    { url: "/icon-512.png", thumbUrl: "/icon-512.png" },
+    { url: "/apple-touch-icon.png", thumbUrl: "/apple-touch-icon.png" },
+  ] },
+  { type: "image", url: "/icon-512.png", caption: "Die ganze Gruppe am Jaunpass" },
+  { type: "button", label: "Jetzt für Juni anmelden", url: "https://example.org/anmelden" },
+  { type: "divider" },
+  { type: "text", text: "Euer DOC-Bern Vorstand" },
+];
+
+export const demoNewsWithBlocks: NewsItem = {
+  id: "seed-demo-blocks",
+  title: "Beispiel: Eventbericht mit Galerie und Tabelle",
+  summary: "Testbeitrag mit allen Bausteinen (nur lokal sichtbar).",
+  content: "Liebe Mitglieder, was für ein traumhafter Saisonstart!",
+  imageUrl: null,
+  links: [],
+  category: "report",
+  sortOrder: 2,
+  isArchived: false,
+  publishedAt: "2026-05-12T10:00:00.000Z",
+  status: "published",
+  blocks: demoBlocks,
+};

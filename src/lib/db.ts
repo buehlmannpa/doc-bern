@@ -1,7 +1,8 @@
 import { sql } from "@vercel/postgres";
 import { unstable_cache, revalidateTag } from "next/cache";
-import type { EventItem, NewsItem, NewsCategory, ActionItem, PartnerItem, BoardMemberItem } from "./types";
-import { seedEvents, seedNews } from "./seed";
+import type { EventItem, NewsItem, NewsListItem, NewsDetail, NewsBlock, NewsCategory, ActionItem, PartnerItem, BoardMemberItem } from "./types";
+import { seedEvents, seedNews, demoNewsWithBlocks } from "./seed";
+import { toNewsListItem, collectImageUrls } from "./blocks";
 import { partners as seedPartners, board as seedBoard } from "@/data/content";
 import { hashPassword, type AdminRole } from "./auth";
 
@@ -131,6 +132,7 @@ async function ensureSchema() {
   await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS updated_by TEXT;`;
   await sql`ALTER TABLE news ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'published';`;
   await sql`ALTER TABLE news ADD COLUMN IF NOT EXISTS updated_by TEXT;`;
+  await sql`ALTER TABLE news ADD COLUMN IF NOT EXISTS blocks JSONB;`;
 
   // Einmaliges Seeding, falls die Tabellen leer sind
   const ev = await sql`SELECT COUNT(*)::int AS c FROM events;`;
@@ -191,8 +193,10 @@ async function ensureSchema() {
 // Stattdessen die Abfrage direkt ausführen und nur im Fehlerfall (Tabelle oder
 // Spalte fehlt noch) einmalig das Schema anlegen und erneut versuchen.
 function isMissingSchema(e: unknown): boolean {
-  const code = (e as { code?: string } | null)?.code;
-  return code === "42P01" /* undefined_table */ || code === "42703" /* undefined_column */;
+  const err = e as { code?: string; message?: string } | null;
+  if (err?.code === "42P01" /* undefined_table */ || err?.code === "42703" /* undefined_column */) return true;
+  // Zusätzlich am Meldungstext erkennen, falls der Treiber den Fehlercode nicht mitliefert
+  return /(column|relation) .*does not exist/i.test(err?.message ?? "");
 }
 
 async function readQuery<T>(run: () => Promise<T>): Promise<T> {
@@ -246,6 +250,25 @@ function rowToNews(r: any): NewsItem {
     publishedAt: d.toISOString(),
     status: (r.status as NewsItem["status"]) || "published",
     updatedBy: r.updated_by ?? null,
+    blocks: Array.isArray(r.blocks) ? (r.blocks as NewsBlock[]) : null,
+  };
+}
+
+// Leichte Zeile für die öffentliche Liste (ohne content/links/blocks)
+function rowToNewsListItem(r: any): NewsListItem {
+  const d = r.published_at instanceof Date ? r.published_at : new Date(r.published_at);
+  return {
+    id: r.id,
+    title: r.title,
+    summary: r.summary || "",
+    imageUrl: r.image_url,
+    category: (r.category as NewsCategory) || "news",
+    sortOrder: r.sort_order ?? 0,
+    isArchived: Boolean(r.is_archived),
+    publishedAt: d.toISOString(),
+    status: (r.status as NewsItem["status"]) || "published",
+    updatedBy: r.updated_by ?? null,
+    hasContent: Boolean(r.has_content),
   };
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -314,35 +337,80 @@ export async function updateEvent(id: string, input: Omit<EventItem, "id">): Pro
   return rowToEvent(res.rows[0]);
 }
 
-export async function deleteEvent(id: string): Promise<void> {
+// Löscht das Event und gibt die Adressen der zugehörigen Bilder zurück (zum Aufräumen im Blob-Speicher)
+export async function deleteEvent(id: string): Promise<string[]> {
   await ensureSchema();
-  await sql`DELETE FROM events WHERE id = ${id};`;
+  const res = await sql`DELETE FROM events WHERE id = ${id} RETURNING image_url;`;
   revalidateTag(TAGS.events);
+  return res.rows.flatMap((r) => (r.image_url ? [r.image_url as string] : []));
 }
 
 // ---------- NEWS ----------
 
 // Alle News (Admin) – inkl. Entwürfe/geplante. Nicht gecacht: Admin sieht stets frisch.
 export async function getNews(): Promise<NewsItem[]> {
-  if (!isDbConfigured()) return seedNews;
+  if (!isDbConfigured()) return fallbackNews();
   const { rows } = await readQuery(() => sql`SELECT * FROM news ORDER BY sort_order ASC, published_at DESC;`);
   return rows.map(rowToNews);
 }
 
+// Ohne Datenbank (lokale Tests) werden die Beispieldaten verwendet. Der Beispielbeitrag mit
+// Bausteinen erscheint nur, wenn DOC_DEMO_BLOCKS=1 gesetzt ist (nie in Produktion).
+function fallbackNews(): NewsItem[] {
+  return process.env.DOC_DEMO_BLOCKS === "1" ? [...seedNews, demoNewsWithBlocks] : seedNews;
+}
+
 // Öffentlich sichtbare News (veröffentlicht und Publikationszeitpunkt erreicht). Gecacht.
+// LEICHTE Liste: ohne Inhalt. Tabellen, Galerien und Text werden erst beim Öffnen eines
+// Beitrags über getPublishedNewsDetail nachgeladen.
 export const getPublishedNews = unstable_cache(
-  async (): Promise<NewsItem[]> => {
-    if (!isDbConfigured()) return seedNews;
+  async (): Promise<NewsListItem[]> => {
+    if (!isDbConfigured()) return fallbackNews().map(toNewsListItem);
     const { rows } = await readQuery(() => sql`
-      SELECT * FROM news
+      SELECT id, title, summary, image_url, category, sort_order, is_archived, published_at, status, updated_by,
+             (COALESCE(content, '') <> ''
+              OR COALESCE(jsonb_array_length(links), 0) > 0
+              OR CASE WHEN jsonb_typeof(blocks) = 'array' THEN jsonb_array_length(blocks) > 0 ELSE false END) AS has_content
+      FROM news
       WHERE status = 'published' AND published_at <= now()
       ORDER BY sort_order ASC, published_at DESC;
     `);
-    return rows.map(rowToNews);
+    return rows.map(rowToNewsListItem);
   },
-  ["published-news"],
+  ["published-news-list-v2"],
   { revalidate: PUBLIC_REVALIDATE, tags: [TAGS.news] }
 );
+
+const getNewsDetailCached = unstable_cache(
+  async (id: string): Promise<NewsDetail | null> => {
+    if (!isDbConfigured()) {
+      const n = fallbackNews().find((x) => x.id === id && x.status === "published");
+      return n ? { content: n.content, links: n.links, blocks: n.blocks ?? null } : null;
+    }
+    const { rows } = await readQuery(() => sql`
+      SELECT content, links, blocks FROM news
+      WHERE id = ${id} AND status = 'published' AND published_at <= now();
+    `);
+    if (rows.length === 0) return null;
+    const r = rows[0];
+    return {
+      content: r.content || "",
+      links: Array.isArray(r.links) ? r.links : [],
+      blocks: Array.isArray(r.blocks) ? (r.blocks as NewsBlock[]) : null,
+    };
+  },
+  ["published-news-detail-v1"],
+  { revalidate: PUBLIC_REVALIDATE, tags: [TAGS.news] }
+);
+
+// Inhalt EINES öffentlich sichtbaren Beitrags (wird beim Öffnen geladen).
+// Prüft zuerst die veröffentlichte Liste: Entwürfe/geplante/unbekannte IDs liefern null
+// und erzeugen keine Zwischenspeicher-Einträge.
+export async function getPublishedNewsDetail(id: string): Promise<NewsDetail | null> {
+  const list = await getPublishedNews();
+  if (!list.some((n) => n.id === id)) return null;
+  return getNewsDetailCached(id);
+}
 
 export async function createNews(
   input: Omit<NewsItem, "id" | "sortOrder">
@@ -352,11 +420,12 @@ export async function createNews(
   const { rows: minRows } = await sql`SELECT COALESCE(MIN(sort_order), 0) - 1 AS next FROM news;`;
   const sortOrder = minRows[0].next;
   const res = await sql`
-    INSERT INTO news (id, title, summary, content, image_url, links, category, sort_order, is_archived, published_at, status, updated_by)
+    INSERT INTO news (id, title, summary, content, image_url, links, category, sort_order, is_archived, published_at, status, updated_by, blocks)
     VALUES (${id}, ${input.title}, ${input.summary}, ${input.content}, ${input.imageUrl ?? null},
             ${JSON.stringify(input.links ?? [])}::jsonb, ${input.category}, ${sortOrder},
             ${input.isArchived ?? false}, ${input.publishedAt ?? new Date().toISOString()},
-            ${input.status ?? "published"}, ${input.updatedBy ?? null})
+            ${input.status ?? "published"}, ${input.updatedBy ?? null},
+            ${input.blocks ? JSON.stringify(input.blocks) : null}::jsonb)
     RETURNING *;
   `;
   revalidateTag(TAGS.news);
@@ -386,14 +455,52 @@ export async function updateNews(
   if (res.rows.length === 0) {
     throw new Error(`Newsbeitrag nicht gefunden (id=${id}).`);
   }
+  // Bausteine nur ändern, wenn sie mitgeschickt wurden (undefined = unverändert lassen).
+  let row = res.rows[0];
+  if (input.blocks !== undefined) {
+    const upd = await sql`
+      UPDATE news SET blocks = ${input.blocks ? JSON.stringify(input.blocks) : null}::jsonb
+      WHERE id = ${id}
+      RETURNING *;
+    `;
+    row = upd.rows[0] ?? row;
+  }
   revalidateTag(TAGS.news);
-  return rowToNews(res.rows[0]);
+  return rowToNews(row);
 }
 
-export async function deleteNews(id: string): Promise<void> {
+// Löscht den Beitrag und gibt die Adressen aller zugehörigen Bilder zurück (Titelbild, Bild- und Galerie-Bausteine)
+export async function deleteNews(id: string): Promise<string[]> {
   await ensureSchema();
-  await sql`DELETE FROM news WHERE id = ${id};`;
+  const res = await sql`DELETE FROM news WHERE id = ${id} RETURNING image_url, blocks;`;
   revalidateTag(TAGS.news);
+  return res.rows.flatMap((r) => collectImageUrls(r.image_url, r.blocks));
+}
+
+// Bildadressen, die ein Eintrag aktuell in der Datenbank hat (vor dem Speichern abfragen, um danach Ersetztes aufzuräumen)
+export async function getStoredImageUrls(kind: "news" | "events" | "board", id: string): Promise<string[]> {
+  await ensureSchema();
+  if (kind === "news") {
+    const r = await sql`SELECT image_url, blocks FROM news WHERE id = ${id};`;
+    return r.rows.flatMap((x) => collectImageUrls(x.image_url, x.blocks));
+  }
+  const r =
+    kind === "events"
+      ? await sql`SELECT image_url FROM events WHERE id = ${id};`
+      : await sql`SELECT image_url FROM board_members WHERE id = ${id};`;
+  return r.rows.flatMap((x) => (x.image_url ? [x.image_url as string] : []));
+}
+
+// Prüft, ob eine Bildadresse noch irgendwo verwendet wird (News, Events, Vorstand)
+export async function isImageStillUsed(url: string): Promise<boolean> {
+  await ensureSchema();
+  const like = `%${url.replace(/[\\%_]/g, "\\$&")}%`;
+  const res = await sql`
+    SELECT 1 FROM news WHERE image_url = ${url} OR blocks::text LIKE ${like}
+    UNION ALL SELECT 1 FROM events WHERE image_url = ${url}
+    UNION ALL SELECT 1 FROM board_members WHERE image_url = ${url}
+    LIMIT 1;`;
+  return res.rows.length > 0;
 }
 
 export async function reorderNews(orderedIds: string[]): Promise<void> {
@@ -599,10 +706,11 @@ export async function updateBoardMember(id: string, input: Omit<BoardMemberItem,
   return rowToBoard(res.rows[0]);
 }
 
-export async function deleteBoardMember(id: string): Promise<void> {
+export async function deleteBoardMember(id: string): Promise<string[]> {
   await ensureSchema();
-  await sql`DELETE FROM board_members WHERE id = ${id};`;
+  const res = await sql`DELETE FROM board_members WHERE id = ${id} RETURNING image_url;`;
   revalidateTag(TAGS.board);
+  return res.rows.flatMap((r) => (r.image_url ? [r.image_url as string] : []));
 }
 
 export async function reorderBoard(orderedIds: string[]): Promise<void> {
