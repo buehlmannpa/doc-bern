@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createEvent, getEvents, updateEvent, deleteEvent, isDbConfigured } from "@/lib/db";
 import { currentUsername } from "@/lib/session";
 import type { EventItem } from "@/lib/types";
+import { deleteUnusedBlobs } from "@/lib/blob-cleanup";
 
 export const dynamic = "force-dynamic";
 
@@ -87,8 +88,9 @@ export async function DELETE(request: Request) {
     if (!id) {
       return NextResponse.json({ error: "Keine id angegeben." }, { status: 400 });
     }
-    await deleteEvent(id);
-    return NextResponse.json({ ok: true });
+    const urls = await deleteEvent(id);
+    const cleanup = await deleteUnusedBlobs(urls);
+    return NextResponse.json({ ok: true, deletedImages: cleanup.deleted, imageCleanupFailed: cleanup.failed });
   } catch (e) {
     return NextResponse.json(
       { error: `Löschen fehlgeschlagen: ${(e as Error).message}` },

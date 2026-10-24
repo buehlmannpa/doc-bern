@@ -2,7 +2,7 @@ import { sql } from "@vercel/postgres";
 import { unstable_cache, revalidateTag } from "next/cache";
 import type { EventItem, NewsItem, NewsListItem, NewsDetail, NewsBlock, NewsCategory, ActionItem, PartnerItem, BoardMemberItem } from "./types";
 import { seedEvents, seedNews, demoNewsWithBlocks } from "./seed";
-import { toNewsListItem } from "./blocks";
+import { toNewsListItem, collectImageUrls } from "./blocks";
 import { partners as seedPartners, board as seedBoard } from "@/data/content";
 import { hashPassword, type AdminRole } from "./auth";
 
@@ -337,10 +337,12 @@ export async function updateEvent(id: string, input: Omit<EventItem, "id">): Pro
   return rowToEvent(res.rows[0]);
 }
 
-export async function deleteEvent(id: string): Promise<void> {
+// Löscht das Event und gibt die Adressen der zugehörigen Bilder zurück (zum Aufräumen im Blob-Speicher)
+export async function deleteEvent(id: string): Promise<string[]> {
   await ensureSchema();
-  await sql`DELETE FROM events WHERE id = ${id};`;
+  const res = await sql`DELETE FROM events WHERE id = ${id} RETURNING image_url;`;
   revalidateTag(TAGS.events);
+  return res.rows.flatMap((r) => (r.image_url ? [r.image_url as string] : []));
 }
 
 // ---------- NEWS ----------
@@ -467,10 +469,24 @@ export async function updateNews(
   return rowToNews(row);
 }
 
-export async function deleteNews(id: string): Promise<void> {
+// Löscht den Beitrag und gibt die Adressen aller zugehörigen Bilder zurück (Titelbild, Bild- und Galerie-Bausteine)
+export async function deleteNews(id: string): Promise<string[]> {
   await ensureSchema();
-  await sql`DELETE FROM news WHERE id = ${id};`;
+  const res = await sql`DELETE FROM news WHERE id = ${id} RETURNING image_url, blocks;`;
   revalidateTag(TAGS.news);
+  return res.rows.flatMap((r) => collectImageUrls(r.image_url, r.blocks));
+}
+
+// Prüft, ob eine Bildadresse noch irgendwo verwendet wird (News, Events, Vorstand)
+export async function isImageStillUsed(url: string): Promise<boolean> {
+  await ensureSchema();
+  const like = `%${url.replace(/[\\%_]/g, "\\$&")}%`;
+  const res = await sql`
+    SELECT 1 FROM news WHERE image_url = ${url} OR blocks::text LIKE ${like}
+    UNION ALL SELECT 1 FROM events WHERE image_url = ${url}
+    UNION ALL SELECT 1 FROM board_members WHERE image_url = ${url}
+    LIMIT 1;`;
+  return res.rows.length > 0;
 }
 
 export async function reorderNews(orderedIds: string[]): Promise<void> {

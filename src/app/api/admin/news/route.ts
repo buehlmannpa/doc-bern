@@ -10,6 +10,7 @@ import {
 } from "@/lib/db";
 import type { NewsBlock, NewsItem } from "@/lib/types";
 import { blocksToPlainText, sanitizeBlocks } from "@/lib/blocks";
+import { deleteUnusedBlobs } from "@/lib/blob-cleanup";
 
 export const dynamic = "force-dynamic";
 
@@ -133,8 +134,9 @@ export async function DELETE(request: Request) {
     if (!id) {
       return NextResponse.json({ error: "Keine id angegeben." }, { status: 400 });
     }
-    await deleteNews(id);
-    return NextResponse.json({ ok: true });
+    const urls = await deleteNews(id);
+    const cleanup = await deleteUnusedBlobs(urls);
+    return NextResponse.json({ ok: true, deletedImages: cleanup.deleted, imageCleanupFailed: cleanup.failed });
   } catch (e) {
     return NextResponse.json(
       { error: `Löschen fehlgeschlagen: ${(e as Error).message}` },

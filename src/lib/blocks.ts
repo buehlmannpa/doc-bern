@@ -191,3 +191,25 @@ export function dropEmptyBlocks(blocks: NewsBlock[]): NewsBlock[] {
     }
   });
 }
+
+// Alle Bildadressen eines Beitrags: Titelbild sowie Bild- und Galerie-Bausteine (inkl. Vorschaubilder)
+export function collectImageUrls(cover: unknown, blocks: unknown): string[] {
+  const urls = new Set<string>();
+  const add = (u: unknown) => {
+    if (typeof u === "string" && u.trim()) urls.add(u.trim());
+  };
+  add(cover);
+  if (Array.isArray(blocks)) {
+    for (const b of blocks as Record<string, unknown>[]) {
+      if (!b || typeof b !== "object") continue;
+      if (b.type === "image") add(b.url);
+      if (b.type === "gallery" && Array.isArray(b.images)) {
+        for (const im of b.images as Record<string, unknown>[]) {
+          add(im?.url);
+          add(im?.thumbUrl);
+        }
+      }
+    }
+  }
+  return [...urls];
+}
