@@ -59,8 +59,8 @@ ausgefüllt, nicht programmiert.
 
 ### Bausteine, Etappe 2 (später, bei Bedarf)
 
-Video (YouTube-Link), Datei/PDF zum Herunterladen (z. B. GV-Protokoll), Event-Karte
-("Zum Event"), Zitat. Das Datenmodell ist dafür von Anfang an offen.
+Datei/PDF zum Herunterladen (z. B. GV-Protokoll), Event-Karte ("Zum Event"), Zitat.
+Das Datenmodell ist dafür von Anfang an offen. **Video ist bewusst nicht vorgesehen** (nicht benötigt).
 
 ### So sieht es aus
 
@@ -100,14 +100,87 @@ und die Links in Button-Bausteine umgewandelt. Nichts geht verloren.
   dem Textfeld fügen die Zeichen automatisch ein. Der Admin muss die Schreibweise nicht kennen.
 - **Tabelle:** Eingabe als Raster; beim Einfügen aus Excel/Word wird Tab/Zeilenumbruch automatisch erkannt.
   Grenzen: max. 8 Spalten, 50 Zeilen. Anzeige mit seitlichem Scrollen auf dem Handy.
-- **Galerie:** Bilder werden **vor dem Upload im Browser verkleinert** (ca. 1600 px, JPEG), typisch
-  ~300 KB statt 5 MB. Das ist schneller, spart Speicher (Vercel-Blob-Kontingent) und lädt für Mitglieder
-  flott. Anzeige mit Grossansicht (Wischen, Pfeiltasten, Esc, Bildunterschrift). Nutzt den bestehenden Upload.
+- **Galerie:** Bilder werden **vor dem Upload im Browser verkleinert** (Details in 6b). Anzeige im Raster mit
+  Grossansicht (Wischen, Pfeiltasten, Esc, Bildunterschrift). Nutzt den bestehenden Upload.
 - **Teilen-Link:** `/newsletter?beitrag=<id>` öffnet die News-Seite mit aufgeklapptem, angescrolltem Beitrag.
   Dazu ein "Link teilen"-Button (Teilen-Menü des Handys). Das ersetzt den Link aus dem CleverReach-Mailing.
 - **Anzeige in der Kachel:** bleibt wie zuletzt abgenommen (Bild bleibt, nur Inhalt kommt dazu).
   Tabellen scrollen, Galerien nutzen 2 Spalten. Falls sich reiche Beiträge in der Kachel zu eng anfühlen,
   gibt es als spätere Option eine eigene **Leseansicht** pro Beitrag (Entscheidung nach ersten echten Beiträgen).
+
+## 6a. Inhalte erst beim Öffnen laden
+
+**Ja, das ist machbar und sinnvoll.** Die News-Liste enthält dann nur das Nötige für die Kachel
+(Titel, Kategorie, Datum, Kurztext, Titelbild). Tabellen, Galerien und der volle Text werden erst
+geladen, wenn ein Mitglied **"Weiterlesen"** antippt.
+
+So funktioniert es:
+- **Liste:** lädt ohne die schweren Inhalte (`content`, `blocks`). Zusätzlich merkt sich die Liste nur, ob ein
+  Beitrag überhaupt Inhalt hat, damit "Weiterlesen" bei reinen Kurzmeldungen entfällt.
+- **Beim Öffnen:** die App holt den Inhalt dieses einen Beitrags über eine kleine öffentliche Abfrage
+  (`/api/news?id=…`, im selben Stil wie die bestehenden Abfragen). Währenddessen zeigt die Kachel kurz einen
+  Platzhalter.
+- **Schnell:** Der geladene Inhalt wird im Browser gemerkt (zweites Öffnen sofort) und auf dem Server wie die
+  übrigen Inhalte kurz zwischengespeichert. Optional wird schon beim Berühren der Kachel vorgeladen, dann fühlt
+  sich das Öffnen praktisch sofort an.
+- **Aktuell:** Speichert ein Admin etwas, wird der Zwischenspeicher sofort erneuert (wie bei den übrigen Inhalten).
+- **Sicher:** Die Abfrage liefert **nur veröffentlichte Beiträge, deren Zeitpunkt erreicht ist**. Entwürfe und
+  geplante Beiträge sind über diese Abfrage nie abrufbar.
+- **Teilen-Link:** `/newsletter?beitrag=<id>` lädt den Inhalt dieses einen Beitrags direkt.
+
+Nutzen: schnelleres Öffnen der News-Seite, deutlich weniger Daten (auch mit 50 Beiträgen mit Galerien),
+und Bilder einer Galerie werden erst angefordert, wenn man den Beitrag öffnet. Die Startseite braucht
+ohnehin nur Titel und Kurztext.
+
+Kompromisse (ehrlich): Beim Öffnen gibt es einen kurzen Ladeschritt (typisch ein Wimpernschlag, mit Vorladen
+kaum spürbar). Offen gelesen werden kann nur mit Verbindung; die App hat heute ohnehin keinen Offline-Modus.
+
+## 6b. Fotos automatisch auf ein Minimum verkleinern
+
+**Ja, machbar, und der Gewinn ist gross.** Die Fotos werden im Browser des Admins **verkleinert und neu
+gespeichert, bevor** sie hochgeladen werden. Der Admin merkt nichts davon, er wählt einfach Fotos aus.
+
+**Gemessen** an 5 echten Fotos im Handy-Format (4000 × 3000 px, Ø 1659 KB), Kodierung im Browser:
+
+| Variante | Ø Grösse | Ersparnis |
+|---|---|---|
+| Original vom Handy | 1659 KB | – |
+| 1600 px, WebP Qualität 80 | 310 KB | −81 % |
+| **1280 px, WebP Qualität 70** | **163 KB** | **−90 %** |
+| 1280 px, JPEG Qualität 70 | 195 KB | −88 % |
+| 1024 px, WebP Qualität 60 | 95 KB | −94 % |
+| **Vorschaubild 480 px, WebP Qualität 70** | **27 KB** | **−98 %** |
+| 1280 px, Zielgrösse ≤ 120 KB (Qualität wird automatisch gesenkt) | Ø 132 KB | −92 % |
+
+Bildqualität bei 100 % Zoom, anspruchsvolles Foto (viel Laub und Fels). Links 245 KB (Qualität 70),
+rechts 182 KB (Qualität 46). Für Fotos auf dem Handy kaum ein Unterschied:
+
+![Bildqualität](proposal-news-bloecke/bildqualitaet-vergleich.jpg)
+
+**Vorschlag (Standard, ohne Einstellungen für den Admin):**
+
+| Verwendung | Grösse | Ziel | Typisch |
+|---|---|---|---|
+| Titelbild und Einzelbild | max. 960 px lang | ≤ 100 KB | ca. 80 bis 100 KB* |
+| Galerie, Grossansicht | max. 1280 px lang | ≤ 130 KB | ca. 70 bis 180 KB |
+| Galerie, Vorschau im Raster | 480 px lang | fest | ca. 15 bis 35 KB |
+
+\*aus der 1024-px-Messung abgeleitet, nicht separat gemessen.
+
+Dazu:
+- **Zwei Grössen pro Galerie-Foto:** Das Raster lädt nur die kleinen Vorschaubilder (zusammen etwa 300 KB für 12 Fotos),
+  die Grossansicht wird erst beim Antippen geladen.
+- **Automatische Zielgrösse:** Die Qualität wird so lange gesenkt, bis das Ziel erreicht ist, aber nicht unter eine
+  Untergrenze, damit nichts matschig wird.
+- **Datenschutz-Bonus:** Beim Neuspeichern fallen die versteckten Foto-Infos weg, **auch der GPS-Standort**.
+- **Format:** WebP (kleiner als JPEG). Wo der Browser kein WebP erzeugen kann (ältere Safari-Versionen), wird JPEG verwendet.
+- **Sonderfälle:** Animierte GIFs bleiben unverändert. Logos mit transparentem Hintergrund behalten die Transparenz.
+  Kann ein Foto im Browser nicht gelesen werden (z. B. seltenes HEIC-Format), gibt es eine klare Meldung statt eines Fehlers.
+
+**Speicher-Beispiel:** Ein Beitrag mit Titelbild und 12 Galeriefotos braucht rund **2 MB** statt etwa **20 MB**.
+Das schont das Speicher-Kontingent von Vercel Blob deutlich (Verbrauch im Vercel-Dashboard beobachten).
+
+Offene Entscheidung dazu: Standard wie oben (empfohlen), oder noch stärker komprimieren (Foto kleiner, aber sichtbar weicher)?
 
 ## 7. Was CleverReach kann und diese Lösung (noch) nicht
 
@@ -135,13 +208,13 @@ Jede Etappe ist ein eigener, einzeln prüfbarer Pull Request (zuerst `develop`, 
 
 | Etappe | Inhalt | Grobe Grösse |
 |---|---|---|
-| 1 | Datenmodell + Migration + Anzeige-Komponente (alle Bausteine darstellbar, alte Beiträge unverändert) | klein–mittel |
-| 2 | Editor-Grundgerüst: Text, Bild, Hinweis, Button, Trennlinie; Verschieben/Entfernen; Umwandlung alter Beiträge | mittel |
+| 1 | Datenmodell + Migration + Anzeige-Komponente (alle Bausteine darstellbar, alte Beiträge unverändert) + **Laden erst beim Öffnen** (leichte Liste, Abfrage pro Beitrag, Zwischenspeicher) | mittel |
+| 2 | Editor-Grundgerüst: Text, Bild, Hinweis, Button, Trennlinie; Verschieben/Entfernen; Umwandlung alter Beiträge; **automatisches Verkleinern der Bilder** (Titel- und Einzelbild) | mittel |
 | 3 | Tabellen-Baustein inkl. Einfügen aus Excel | klein–mittel |
-| 4 | Galerie: Mehrfach-Upload, Verkleinern, Raster, Grossansicht | mittel |
+| 4 | Galerie: Mehrfach-Upload, zwei Bildgrössen (Vorschau + Gross), Raster, Grossansicht | mittel |
 | 5 | Vorschau-Umschalter, Vorlagen, Teilen-Link | klein–mittel |
 
-Gesamtaufwand grob geschätzt: **3 bis 4 Arbeitstage**, in dieser Reihenfolge lieferbar. Schon nach Etappe 2 kann
+Gesamtaufwand grob geschätzt: **3,5 bis 4,5 Arbeitstage**, in dieser Reihenfolge lieferbar. Schon nach Etappe 2 kann
 man einfache Newsletter-artige Beiträge schreiben.
 
 ## 9. Tests und Risiken
@@ -163,3 +236,6 @@ man einfache Newsletter-artige Beiträge schreiben.
 3. **Benachrichtigung** (Abschnitt 7): bewusst später klären?
 4. **Reihenfolge:** wie in Abschnitt 8, oder zuerst die Galerie?
 5. **Vorlagen:** welche 2 bis 3 Beitragsarten schreibt ihr am häufigsten?
+6. **Bildqualität:** Standard wie in 6b (empfohlen) oder noch stärker komprimieren?
+
+*Bereits entschieden: Video-Baustein entfällt. Laden erst beim Öffnen und stark verkleinerte Fotos sind eingeplant.*
