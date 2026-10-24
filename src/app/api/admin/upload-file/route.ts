@@ -2,7 +2,7 @@ import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { COOKIE_NAME, isValidSession } from "@/lib/auth";
-import { findBlobToken } from "@/lib/blob-token";
+import { findBlobTokenEntry } from "@/lib/blob-token";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (!(await isValidSession(store.get(COOKIE_NAME)?.value))) {
     return NextResponse.json({ error: "Nicht autorisiert – bitte im Admin-Bereich anmelden." }, { status: 401 });
   }
-  const token = findBlobToken();
+  const entry = findBlobTokenEntry();
+  const token = entry?.value;
   if (!token) {
     return NextResponse.json({ error: "Kein Blob-Schreibtoken gefunden (BLOB_READ_WRITE_TOKEN)." }, { status: 503 });
   }
@@ -47,6 +48,6 @@ export async function POST(request: Request): Promise<NextResponse> {
     });
     return NextResponse.json({ url: blob.url });
   } catch (e) {
-    return NextResponse.json({ error: `Upload fehlgeschlagen: ${(e as Error).message}` }, { status: 502 });
+    return NextResponse.json({ error: `Upload fehlgeschlagen: ${(e as Error).message} (Token: ${entry!.name})` }, { status: 502 });
   }
 }
