@@ -1,11 +1,13 @@
 import { getPublishedNews } from "@/lib/db";
 import { seedNews } from "@/lib/seed";
+import { toNewsListItem } from "@/lib/blocks";
+import type { NewsListItem } from "@/lib/types";
 import NewsClient from "./NewsClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewsletterPage() {
-  let news = seedNews;
+  let news: NewsListItem[] = seedNews.map(toNewsListItem);
   try {
     news = await getPublishedNews();
   } catch {

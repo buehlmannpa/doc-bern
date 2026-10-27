@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AdminNav from "@/components/AdminNav";
+import { settleUploads } from "@/lib/upload-tracker";
 import ImageField from "@/components/ImageField";
 import LinksField from "@/components/LinksField";
 import type { EventItem, EventLink } from "@/lib/types";
@@ -78,6 +79,7 @@ export default function EventsAdminPage() {
     });
     setSaving(false);
     if (res.ok) {
+      await settleUploads(draft.imageUrl ? [draft.imageUrl] : []);
       setDraft(null);
       load();
     } else {
@@ -192,7 +194,10 @@ export default function EventsAdminPage() {
       {draft && (
         <EditorModal
           title={draft.id ? "Event bearbeiten" : "Neues Event"}
-          onClose={() => setDraft(null)}
+          onClose={() => {
+            void settleUploads([]);
+            setDraft(null);
+          }}
           onSave={save}
           saving={saving}
           error={error}

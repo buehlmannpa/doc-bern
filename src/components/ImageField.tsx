@@ -1,40 +1,52 @@
 "use client";
 
 import { useState } from "react";
-import { upload } from "@vercel/blob/client";
+import { uploadImage } from "@/lib/upload-image";
+import { formatKb, resizeImage, type ResizeOptions } from "@/lib/image-resize";
 
 export default function ImageField({
   value,
   onChange,
+  maxEdge,
+  targetKb,
 }: {
   value: string | null | undefined;
   onChange: (url: string | null) => void;
-}) {
-  const [uploading, setUploading] = useState(false);
+} & ResizeOptions) {
+  const [status, setStatus] = useState<"" | "resizing" | "uploading">("");
+  const [info, setInfo] = useState("");
   const [error, setError] = useState("");
+  const busy = status !== "";
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
-    setUploading(true);
     setError("");
+    setInfo("");
     try {
-      // Direkter Upload vom Browser zu Vercel Blob – umgeht das 4.5-MB-Limit
-      // der Server-Functions, sodass auch grosse Handy-Fotos funktionieren.
-      const blob = await upload(file.name, file, {
-        access: "public",
-        handleUploadUrl: "/api/admin/upload",
-        contentType: file.type || undefined,
-      });
-      onChange(blob.url);
+      // 1) Foto im Browser verkleinern (spart Speicher und Ladezeit; entfernt auch den GPS-Standort)
+      setStatus("resizing");
+      const small = await resizeImage(file, { maxEdge, targetKb });
+      setInfo(small === file ? "" : `Verkleinert: ${formatKb(file.size)} → ${formatKb(small.size)}`);
+
+      // 2) Hochladen (kleine Dateien über den Server, sonst direkt zu Vercel Blob)
+      setStatus("uploading");
+      const url = await uploadImage(small);
+      onChange(url);
     } catch (err) {
+      setInfo("");
       setError(
-        err instanceof Error ? `Upload fehlgeschlagen: ${err.message}` : "Upload fehlgeschlagen"
+        err instanceof Error
+          ? err.message.startsWith("Das Foto")
+            ? err.message
+            : `Upload fehlgeschlagen: ${err.message}`
+          : "Upload fehlgeschlagen"
       );
     } finally {
-      setUploading(false);
+      setStatus("");
       // Input zurücksetzen, damit dieselbe Datei erneut gewählt werden kann
-      e.target.value = "";
+      input.value = "";
     }
   }
 
@@ -47,6 +59,7 @@ export default function ImageField({
           <button
             type="button"
             onClick={() => onChange(null)}
+            aria-label="Bild entfernen"
             className="absolute top-2 right-2 w-8 h-8 rounded-full text-white text-sm font-bold"
             style={{ background: "rgba(0,0,0,0.6)" }}
           >
@@ -60,8 +73,14 @@ export default function ImageField({
           className="text-sm font-semibold py-2.5 px-4 rounded-xl text-center cursor-pointer"
           style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}
         >
-          {uploading ? "Wird hochgeladen…" : value ? "Bild ersetzen" : "Bild hochladen"}
-          <input type="file" accept="image/*" onChange={handleFile} className="hidden" disabled={uploading} />
+          {status === "resizing"
+            ? "Wird verkleinert…"
+            : status === "uploading"
+              ? "Wird hochgeladen…"
+              : value
+                ? "Bild ersetzen"
+                : "Bild hochladen"}
+          <input type="file" accept="image/*" onChange={handleFile} className="hidden" disabled={busy} />
         </label>
         <input
           type="url"
@@ -72,8 +91,13 @@ export default function ImageField({
           style={{ background: "rgba(0,0,0,0.04)" }}
         />
       </div>
+      {info && (
+        <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
+          {info}
+        </p>
+      )}
       {error && (
-        <p className="text-xs mt-1" style={{ color: "#ff3b30" }}>
+        <p className="text-xs mt-1" style={{ color: "#ff3b30" }} role="alert">
           {error}
         </p>
       )}
