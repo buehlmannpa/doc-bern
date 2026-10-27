@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createEvent, getEvents, updateEvent, deleteEvent, isDbConfigured } from "@/lib/db";
 import { currentUsername } from "@/lib/session";
-import type { EventItem } from "@/lib/types";
+import type { EventItem, NewsBlock } from "@/lib/types";
+import { blocksToPlainText, collectImageUrls, parseBlocks } from "@/lib/blocks";
 import { deleteUnusedBlobs, deleteReplacedBlobs } from "@/lib/blob-cleanup";
 import { getStoredImageUrls } from "@/lib/db";
 
@@ -31,12 +32,21 @@ export async function POST(request: Request) {
     if (!body.title || !body.date) {
       return NextResponse.json({ error: "Titel und Datum sind erforderlich." }, { status: 400 });
     }
+    let blocks: NewsBlock[] | null | undefined;
+    try {
+      blocks = parseBlocks((body as { blocks?: unknown }).blocks);
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 400 });
+    }
+    // Reiner Text zusätzlich in "description" ablegen (Rückfall, Kalender-Export)
+    const description = blocks && blocks.length > 0 ? blocksToPlainText(blocks) : body.description || "";
     const event = await createEvent({
       title: body.title,
       date: body.date,
       time: body.time || "",
       location: body.location || "",
-      description: body.description || "",
+      description,
+      blocks,
       imageUrl: body.imageUrl ?? null,
       links: body.links ?? [],
       badge: body.badge ?? null,
@@ -60,13 +70,22 @@ export async function PUT(request: Request) {
     if (!body.id) {
       return NextResponse.json({ error: "Keine id angegeben." }, { status: 400 });
     }
+    let blocks: NewsBlock[] | null | undefined;
+    try {
+      blocks = parseBlocks((body as { blocks?: unknown }).blocks);
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 400 });
+    }
+    // Reiner Text zusätzlich in "description" ablegen (Rückfall, Kalender-Export)
+    const description = blocks && blocks.length > 0 ? blocksToPlainText(blocks) : body.description || "";
     const before = await getStoredImageUrls("events", body.id);
     const event = await updateEvent(body.id, {
       title: body.title,
       date: body.date,
       time: body.time || "",
       location: body.location || "",
-      description: body.description || "",
+      description,
+      blocks,
       imageUrl: body.imageUrl ?? null,
       links: body.links ?? [],
       badge: body.badge ?? null,
@@ -74,7 +93,7 @@ export async function PUT(request: Request) {
       publishAt: body.publishAt || new Date().toISOString(),
       updatedBy: await currentUsername(),
     });
-    await deleteReplacedBlobs(before, event.imageUrl ? [event.imageUrl] : []);
+    await deleteReplacedBlobs(before, collectImageUrls(event.imageUrl, event.blocks));
     return NextResponse.json({ event });
   } catch (e) {
     return NextResponse.json(

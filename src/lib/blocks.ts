@@ -1,4 +1,4 @@
-import type { NewsBlock, NewsItem, NewsListItem, CalloutTone } from "./types";
+import type { NewsBlock, NewsItem, NewsListItem, EventItem, EventListItem, CalloutTone } from "./types";
 
 // Prüfung und Bereinigung der Bausteine eines News-Beitrags.
 // Wird beim Speichern (API) verwendet, damit nur erlaubte, begrenzte Daten in der
@@ -141,6 +141,12 @@ export function blocksToPlainText(blocks: NewsBlock[]): string {
 }
 
 // Leichte Listenform eines Beitrags (ohne Inhalt) – für Beispieldaten ohne Datenbank.
+export function toEventListItem(e: EventItem): EventListItem {
+  const { description, links, blocks, ...rest } = e;
+  void description; void links; void blocks;
+  return rest;
+}
+
 export function toNewsListItem(n: NewsItem): NewsListItem {
   const { content, links, blocks, ...rest } = n;
   return {
@@ -212,4 +218,12 @@ export function collectImageUrls(cover: unknown, blocks: unknown): string[] {
     }
   }
   return [...urls];
+}
+
+// Bausteine aus einem Request prüfen. undefined = nicht mitgeschickt (bestehende bleiben unverändert),
+// null = Bausteine entfernen. Ungültige Daten lösen einen verständlichen Fehler aus.
+export function parseBlocks(v: unknown): NewsBlock[] | null | undefined {
+  if (v === undefined) return undefined;
+  if (v === null) return null;
+  return sanitizeBlocks(v);
 }

@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import AdminNav from "@/components/AdminNav";
 import { settleUploads } from "@/lib/upload-tracker";
 import ImageField from "@/components/ImageField";
-import LinksField from "@/components/LinksField";
-import type { EventItem, EventLink } from "@/lib/types";
+import BlocksEditor from "@/components/BlocksEditor";
+import { collectImageUrls, dropEmptyBlocks, legacyToBlocks, sanitizeBlocks } from "@/lib/blocks";
+import type { EventItem, NewsBlock } from "@/lib/types";
 
 type Draft = Omit<EventItem, "id"> & { id?: string };
 
@@ -17,6 +18,7 @@ const emptyDraft: Draft = {
   description: "",
   imageUrl: null,
   links: [],
+  blocks: [],
   badge: "",
   status: "published",
   publishAt: new Date().toISOString(),
@@ -50,6 +52,25 @@ export default function EventsAdminPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [editorKey, setEditorKey] = useState(0); // neuer Schlüssel = Editor wird frisch aufgebaut
+  const [legacyNote, setLegacyNote] = useState(false);
+
+  function openNew() {
+    setDraft({ ...emptyDraft, publishAt: new Date().toISOString() });
+    setLegacyNote(false);
+    setEditorKey((k) => k + 1);
+    setError("");
+  }
+
+  // Alte Events (nur Beschreibung + Links) werden beim Bearbeiten in Bausteine umgewandelt.
+  function openEdit(ev: EventItem) {
+    const hasBlocks = Boolean(ev.blocks && ev.blocks.length > 0);
+    const blocks: NewsBlock[] = hasBlocks ? (ev.blocks as NewsBlock[]) : legacyToBlocks(ev.description, ev.links);
+    setDraft({ ...ev, badge: ev.badge || "", blocks });
+    setLegacyNote(!hasBlocks && blocks.length > 0);
+    setEditorKey((k) => k + 1);
+    setError("");
+  }
 
   async function load() {
     setLoading(true);
@@ -69,17 +90,27 @@ export default function EventsAdminPage() {
       setError("Titel und Datum sind erforderlich.");
       return;
     }
+    // Leere Bausteine entfernen und die übrigen prüfen, bevor etwas gesendet wird
+    let blocks: NewsBlock[];
+    try {
+      blocks = sanitizeBlocks(dropEmptyBlocks(draft.blocks ?? []));
+    } catch (e) {
+      setError((e as Error).message);
+      return;
+    }
     setSaving(true);
     setError("");
     const isEdit = Boolean(draft.id);
+    // Inhalt steckt jetzt in den Bausteinen: Der Server schreibt den Klartext selbst nach "description".
+    const payload = { ...draft, blocks, description: "", links: [] };
     const res = await fetch("/api/admin/events", {
       method: isEdit ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(draft),
+      body: JSON.stringify(payload),
     });
     setSaving(false);
     if (res.ok) {
-      await settleUploads(draft.imageUrl ? [draft.imageUrl] : []);
+      await settleUploads(collectImageUrls(payload.imageUrl, payload.blocks));
       setDraft(null);
       load();
     } else {
@@ -118,7 +149,7 @@ export default function EventsAdminPage() {
       <div className="flex items-center justify-between mb-4 px-1">
         <h1 className="text-2xl font-bold tracking-tight">Events</h1>
         <button
-          onClick={() => { setDraft({ ...emptyDraft }); setError(""); }}
+          onClick={openNew}
           className="px-4 py-2 rounded-xl text-sm font-semibold text-white"
           style={{ background: "var(--accent-hex)", color: "var(--accent-foreground)" }}
         >
@@ -170,7 +201,7 @@ export default function EventsAdminPage() {
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
                     <button
-                      onClick={() => { setDraft({ ...ev, badge: ev.badge || "" }); setError(""); }}
+                      onClick={() => openEdit(ev)}
                       className="px-3 py-1.5 rounded-lg text-xs font-semibold"
                       style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}
                     >
@@ -216,18 +247,26 @@ export default function EventsAdminPage() {
           <Field label="Ort">
             <input value={draft.location} onChange={(e) => setDraft({ ...draft, location: e.target.value })} className={inputCls} />
           </Field>
-          <Field label="Beschreibung">
-            <textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} rows={4} className={inputCls} />
-          </Field>
           <Field label="Badge (optional, z.B. Highlight)">
             <input value={draft.badge || ""} onChange={(e) => setDraft({ ...draft, badge: e.target.value })} className={inputCls} />
           </Field>
-          <Field label="Bild">
-            <ImageField value={draft.imageUrl} onChange={(url) => setDraft({ ...draft, imageUrl: url })} />
+          <Field label="Titelbild">
+            <ImageField value={draft.imageUrl} onChange={(url) => setDraft((d) => (d ? { ...d, imageUrl: url } : d))} />
           </Field>
-          <Field label="Links">
-            <LinksField links={draft.links} onChange={(links: EventLink[]) => setDraft({ ...draft, links })} />
-          </Field>
+          <div>
+            <span className="text-xs font-semibold block mb-1.5" style={{ color: "var(--text-secondary)" }}>Inhalt</span>
+            {legacyNote && (
+              <p className="text-xs rounded-xl p-3 mb-3" style={{ background: "var(--surface-subtle)", color: "var(--text-secondary)" }}>
+                Dieses Event wurde mit dem alten Textfeld erstellt. Beschreibung und Links wurden in Bausteine umgewandelt.
+                Beim Speichern wird das so übernommen.
+              </p>
+            )}
+            <BlocksEditor
+              key={editorKey}
+              value={draft.blocks ?? []}
+              onChange={(blocks) => setDraft((d) => (d ? { ...d, blocks } : d))}
+            />
+          </div>
 
           <div className="rounded-xl p-3" style={{ background: "var(--surface-subtle)" }}>
             <span className="text-xs font-semibold block mb-2" style={{ color: "var(--text-secondary)" }}>Sichtbarkeit</span>

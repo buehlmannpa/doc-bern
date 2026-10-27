@@ -2,8 +2,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { getPublishedEvents, getPublishedNews, getBoard } from "@/lib/db";
 import { seedEvents, seedNews } from "@/lib/seed";
-import { toNewsListItem } from "@/lib/blocks";
-import type { NewsListItem } from "@/lib/types";
+import { toNewsListItem, toEventListItem } from "@/lib/blocks";
+import type { EventListItem, NewsListItem } from "@/lib/types";
 import { board, boardIntro, hostettlerInfo, membershipUrl } from "@/data/content";
 import BoardMemberCard from "@/components/BoardMemberCard";
 
@@ -31,7 +31,7 @@ const categoryTextColors: Record<string, string> = {
 };
 
 export default async function Home() {
-  let allEvents = seedEvents;
+  let allEvents: EventListItem[] = seedEvents.map(toEventListItem);
   let allNews: NewsListItem[] = seedNews.map(toNewsListItem);
   let boardList: BoardListItem[] = board;
   try {
