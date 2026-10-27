@@ -1,8 +1,8 @@
 import { sql } from "@vercel/postgres";
 import { unstable_cache, revalidateTag } from "next/cache";
-import type { EventItem, NewsItem, NewsListItem, NewsDetail, NewsBlock, NewsCategory, ActionItem, PartnerItem, BoardMemberItem } from "./types";
+import type { EventItem, EventListItem, EventDetail, NewsItem, NewsListItem, NewsDetail, NewsBlock, NewsCategory, ActionItem, PartnerItem, BoardMemberItem } from "./types";
 import { seedEvents, seedNews, demoNewsWithBlocks } from "./seed";
-import { toNewsListItem, collectImageUrls } from "./blocks";
+import { toNewsListItem, toEventListItem, collectImageUrls } from "./blocks";
 import { partners as seedPartners, board as seedBoard } from "@/data/content";
 import { hashPassword, type AdminRole } from "./auth";
 
@@ -133,6 +133,7 @@ async function ensureSchema() {
   await sql`ALTER TABLE news ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'published';`;
   await sql`ALTER TABLE news ADD COLUMN IF NOT EXISTS updated_by TEXT;`;
   await sql`ALTER TABLE news ADD COLUMN IF NOT EXISTS blocks JSONB;`;
+  await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS blocks JSONB;`;
 
   // Einmaliges Seeding, falls die Tabellen leer sind
   const ev = await sql`SELECT COUNT(*)::int AS c FROM events;`;
@@ -232,6 +233,24 @@ function rowToEvent(r: any): EventItem {
     status: (r.status as EventItem["status"]) || "published",
     publishAt: (r.publish_at instanceof Date ? r.publish_at : new Date(r.publish_at || Date.now())).toISOString(),
     updatedBy: r.updated_by ?? null,
+    blocks: Array.isArray(r.blocks) ? (r.blocks as NewsBlock[]) : null,
+  };
+}
+
+// Leichte Zeile für die öffentliche Liste (ohne description/links/blocks)
+function rowToEventListItem(r: any): EventListItem {
+  const d = r.date instanceof Date ? r.date : new Date(r.date);
+  return {
+    id: r.id,
+    title: r.title,
+    date: d.toISOString().slice(0, 10),
+    time: r.time || "",
+    location: r.location || "",
+    imageUrl: r.image_url,
+    badge: r.badge,
+    status: (r.status as EventItem["status"]) || "published",
+    publishAt: (r.publish_at instanceof Date ? r.publish_at : new Date(r.publish_at || Date.now())).toISOString(),
+    updatedBy: r.updated_by ?? null,
   };
 }
 
@@ -283,29 +302,62 @@ export async function getEvents(): Promise<EventItem[]> {
 }
 
 // Öffentlich sichtbare Events (veröffentlicht und Publikationszeitpunkt erreicht). Gecacht.
+// Liefert nur die leichten Felder; der Inhalt kommt über getPublishedEventDetail.
 export const getPublishedEvents = unstable_cache(
-  async (): Promise<EventItem[]> => {
-    if (!isDbConfigured()) return seedEvents;
+  async (): Promise<EventListItem[]> => {
+    if (!isDbConfigured()) return seedEvents.map(toEventListItem);
     const { rows } = await readQuery(() => sql`
-      SELECT * FROM events
+      SELECT id, title, date, time, location, image_url, badge, status, publish_at, updated_by
+      FROM events
       WHERE status = 'published' AND publish_at <= now()
       ORDER BY date ASC, time ASC;
     `);
-    return rows.map(rowToEvent);
+    return rows.map(rowToEventListItem);
   },
-  ["published-events"],
+  ["published-events-v2"],
   { revalidate: PUBLIC_REVALIDATE, tags: [TAGS.events] }
 );
+
+const getEventDetailCached = unstable_cache(
+  async (id: string): Promise<EventDetail | null> => {
+    if (!isDbConfigured()) {
+      const e = seedEvents.find((x) => x.id === id && x.status === "published");
+      return e ? { description: e.description, links: e.links, blocks: e.blocks ?? null } : null;
+    }
+    const { rows } = await readQuery(() => sql`
+      SELECT description, links, blocks FROM events
+      WHERE id = ${id} AND status = 'published' AND publish_at <= now();
+    `);
+    if (rows.length === 0) return null;
+    const r = rows[0];
+    return {
+      description: r.description || "",
+      links: Array.isArray(r.links) ? r.links : [],
+      blocks: Array.isArray(r.blocks) ? (r.blocks as NewsBlock[]) : null,
+    };
+  },
+  ["published-event-detail-v1"],
+  { revalidate: PUBLIC_REVALIDATE, tags: [TAGS.events] }
+);
+
+// Inhalt EINES öffentlich sichtbaren Events (wird beim Aufklappen geladen).
+// Entwürfe, geplante und unbekannte IDs liefern null und erzeugen keine Zwischenspeicher-Einträge.
+export async function getPublishedEventDetail(id: string): Promise<EventDetail | null> {
+  const list = await getPublishedEvents();
+  if (!list.some((e) => e.id === id)) return null;
+  return getEventDetailCached(id);
+}
 
 export async function createEvent(input: Omit<EventItem, "id">): Promise<EventItem> {
   await ensureSchema();
   const id = genId("evt");
   const res = await sql`
-    INSERT INTO events (id, title, date, time, location, description, image_url, links, badge, status, publish_at, updated_by)
+    INSERT INTO events (id, title, date, time, location, description, image_url, links, badge, status, publish_at, updated_by, blocks)
     VALUES (${id}, ${input.title}, ${input.date}, ${input.time}, ${input.location},
             ${input.description}, ${input.imageUrl ?? null},
             ${JSON.stringify(input.links ?? [])}::jsonb, ${input.badge ?? null},
-            ${input.status ?? "published"}, ${input.publishAt ?? new Date().toISOString()}, ${input.updatedBy ?? null})
+            ${input.status ?? "published"}, ${input.publishAt ?? new Date().toISOString()}, ${input.updatedBy ?? null},
+            ${input.blocks ? JSON.stringify(input.blocks) : null}::jsonb)
     RETURNING *;
   `;
   revalidateTag(TAGS.events);
@@ -333,16 +385,26 @@ export async function updateEvent(id: string, input: Omit<EventItem, "id">): Pro
   if (res.rows.length === 0) {
     throw new Error(`Event nicht gefunden (id=${id}).`);
   }
+  // Bausteine nur ändern, wenn sie mitgeschickt wurden (undefined = unverändert lassen).
+  let row = res.rows[0];
+  if (input.blocks !== undefined) {
+    const upd = await sql`
+      UPDATE events SET blocks = ${input.blocks ? JSON.stringify(input.blocks) : null}::jsonb
+      WHERE id = ${id}
+      RETURNING *;
+    `;
+    row = upd.rows[0] ?? row;
+  }
   revalidateTag(TAGS.events);
-  return rowToEvent(res.rows[0]);
+  return rowToEvent(row);
 }
 
 // Löscht das Event und gibt die Adressen der zugehörigen Bilder zurück (zum Aufräumen im Blob-Speicher)
 export async function deleteEvent(id: string): Promise<string[]> {
   await ensureSchema();
-  const res = await sql`DELETE FROM events WHERE id = ${id} RETURNING image_url;`;
+  const res = await sql`DELETE FROM events WHERE id = ${id} RETURNING image_url, blocks;`;
   revalidateTag(TAGS.events);
-  return res.rows.flatMap((r) => (r.image_url ? [r.image_url as string] : []));
+  return res.rows.flatMap((r) => collectImageUrls(r.image_url, r.blocks));
 }
 
 // ---------- NEWS ----------
@@ -484,10 +546,11 @@ export async function getStoredImageUrls(kind: "news" | "events" | "board", id: 
     const r = await sql`SELECT image_url, blocks FROM news WHERE id = ${id};`;
     return r.rows.flatMap((x) => collectImageUrls(x.image_url, x.blocks));
   }
-  const r =
-    kind === "events"
-      ? await sql`SELECT image_url FROM events WHERE id = ${id};`
-      : await sql`SELECT image_url FROM board_members WHERE id = ${id};`;
+  if (kind === "events") {
+    const r = await sql`SELECT image_url, blocks FROM events WHERE id = ${id};`;
+    return r.rows.flatMap((x) => collectImageUrls(x.image_url, x.blocks));
+  }
+  const r = await sql`SELECT image_url FROM board_members WHERE id = ${id};`;
   return r.rows.flatMap((x) => (x.image_url ? [x.image_url as string] : []));
 }
 
@@ -497,7 +560,7 @@ export async function isImageStillUsed(url: string): Promise<boolean> {
   const like = `%${url.replace(/[\\%_]/g, "\\$&")}%`;
   const res = await sql`
     SELECT 1 FROM news WHERE image_url = ${url} OR blocks::text LIKE ${like}
-    UNION ALL SELECT 1 FROM events WHERE image_url = ${url}
+    UNION ALL SELECT 1 FROM events WHERE image_url = ${url} OR blocks::text LIKE ${like}
     UNION ALL SELECT 1 FROM board_members WHERE image_url = ${url}
     LIMIT 1;`;
   return res.rows.length > 0;
