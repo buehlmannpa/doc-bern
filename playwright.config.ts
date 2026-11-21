@@ -24,7 +24,7 @@ export default defineConfig({
       name: "smartphone",
       // iPhone-Grösse und Touch, aber mit Chromium (kein WebKit nötig)
       use: { ...devices["iPhone 13"], browserName: "chromium", defaultBrowserType: "chromium" },
-      testMatch: /public\.spec\.ts/,
+      testMatch: /(public|funktionen)\.spec\.ts/,
     },
   ],
   webServer: {

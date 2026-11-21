@@ -45,7 +45,9 @@ export async function loginUi(page: Page) {
   await page.getByPlaceholder("Benutzername").fill(ADMIN.username);
   await page.getByPlaceholder("Passwort").fill(ADMIN.password);
   await page.getByRole("button", { name: /Anmelden|Login/i }).click();
-  await expect(page.getByRole("heading", { name: "Admin-Bereich" })).toBeVisible();
+  // Die Anmeldeseite heisst ebenfalls "Admin-Bereich": erst die Weiterleitung abwarten, dann das Dashboard prüfen
+  await page.waitForURL((url) => !url.pathname.includes("/admin/login"));
+  await expect(page.getByText("Wähle einen Bereich")).toBeVisible();
 }
 
 /** Anmelden über die API (für das Anlegen von Testdaten). Das Cookie bleibt im Kontext. */
