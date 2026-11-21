@@ -15,6 +15,18 @@ export interface EventItem {
   status: PublishStatus;
   publishAt: string; // ISO datetime – ab wann öffentlich sichtbar
   updatedBy?: string | null;
+  blocks?: NewsBlock[] | null; // null/leer = altes Event (nur description + links)
+}
+
+// Leichte Variante für die öffentliche Liste: ohne den (schweren) Inhalt.
+// Der Inhalt wird erst beim Aufklappen eines Events nachgeladen.
+export type EventListItem = Omit<EventItem, "description" | "links" | "blocks">;
+
+// Inhalt eines einzelnen Events (wird beim Aufklappen geladen)
+export interface EventDetail {
+  description: string;
+  links: EventLink[];
+  blocks: NewsBlock[] | null;
 }
 
 export interface ActionItem {

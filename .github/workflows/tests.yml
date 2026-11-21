@@ -1,0 +1,59 @@
+name: Tests
+
+# Läuft bei jedem Pull Request nach develop (Feature -> DEV) und nach main (DEV -> Prod).
+# Der Job heisst "Tests" und kann in GitHub als Pflicht gesetzt werden (Settings -> Branches).
+on:
+  pull_request:
+    branches: [develop, main]
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: doc_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_URL: postgres://postgres:postgres@localhost:5432/doc_test
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Abhängigkeiten installieren
+        run: npm install --no-audit --no-fund
+      - name: TypeScript prüfen
+        run: npx tsc --noEmit
+      - name: Testbau der App
+        run: npm run build
+        env:
+          E2E_PG: "1"
+      - name: Browser installieren
+        run: npx playwright install --with-deps chromium
+      - name: Tests ausführen
+        run: npx playwright test
+      - name: Testbericht sichern
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
