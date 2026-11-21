@@ -29,7 +29,16 @@ const icons: Record<string, React.ReactNode> = {
 
 export default async function AdminDashboard() {
   const dbReady = isDbConfigured();
-  const user = await currentUser();
+  // Ist die Datenbank nicht erreichbar, soll das Dashboard trotzdem erscheinen (mit Hinweis),
+  // statt mit "Application error" abzustürzen.
+  let user: Awaited<ReturnType<typeof currentUser>> = null;
+  let dbError = "";
+  try {
+    user = await currentUser();
+  } catch (e) {
+    dbError = ((e as Error).message || "unbekannter Fehler").slice(0, 300);
+    console.error("Admin-Dashboard: Datenbankfehler:", (e as Error).message);
+  }
 
   const tiles = [
     { href: "/admin/events", label: "Events", icon: "events" },
@@ -49,6 +58,14 @@ export default async function AdminDashboard() {
       <p className="text-sm mb-5 px-1" style={{ color: "var(--text-secondary)" }}>
         Wähle einen Bereich, um Inhalte der DOC-Bern App zu verwalten.
       </p>
+
+      {dbError && (
+        <div className="glass-card p-4 mb-5 text-sm" role="alert" style={{ background: "rgba(255,59,48,0.1)" }}>
+          <strong>Die Datenbank ist nicht erreichbar.</strong> Inhalte lassen sich zurzeit nicht verwalten.
+          Prüfe in Vercel/Neon, ob die Datenbank läuft und die Zugangsdaten stimmen.
+          <span className="block mt-1 text-xs" style={{ color: "var(--text-secondary)" }}>Meldung: {dbError}</span>
+        </div>
+      )}
 
       {!dbReady && (
         <div className="glass-card p-4 mb-5 text-sm" style={{ background: "rgba(255,149,0,0.1)" }}>
