@@ -13,7 +13,10 @@ pass» → `Tests`).
   nicht abrufbar, altes Format (Text + Links), gleiche Kachelhöhen (Desktop), ungültige IDs.
 - **Admin** (Desktop): Schutz der Admin-Seiten und -Schnittstellen, echter Login, News und Events anlegen,
   bearbeiten, löschen, Umwandlung alter Beiträge, Prüfung unsicherer Links und ungültiger Bausteine,
-  Bild-Aufräumen beim Abbrechen und Speichern.
+  Bild-Aufräumen beim Abbrechen und Speichern. Partner, Rabattaktionen, Vorstand (anlegen, öffentlich sehen,
+  löschen), Benutzerverwaltung (neuer Admin, Rollen, keine Selbstlöschung) und Wartungsmodus.
+- **Funktionen** (Desktop und Smartphone): Kalender-Export (.ics-Inhalt, Google-Link), Hell/Dunkel/Automatisch mit
+  Merken nach dem Neuladen, Kontrastwerte in beiden Modi, Startseite mit Event, News und Vorstand.
 
 ## Wie die Tests laufen
 
