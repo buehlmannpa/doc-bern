@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import type { EventItem } from "@/lib/types";
 
+// Nur diese Felder werden gebraucht (Beschreibung kommt aus dem beim Aufklappen geladenen Inhalt)
+type CalendarEvent = Pick<EventItem, "id" | "title" | "date" | "time" | "location" | "description">;
+
 type Platform = "apple" | "android" | "desktop";
 
 function detectPlatform(): Platform {
@@ -25,7 +28,7 @@ function toStamp(dateStr: string, timeStr: string, addHours = 0): string {
   return `${dt.getFullYear()}${p(dt.getMonth() + 1)}${p(dt.getDate())}T${p(dt.getHours())}${p(dt.getMinutes())}00`;
 }
 
-function buildICS(event: EventItem): string {
+function buildICS(event: CalendarEvent): string {
   const start = toStamp(event.date, event.time, 0);
   const end = toStamp(event.date, event.time, 2); // Standarddauer 2h
   const esc = (s: string) => (s || "").replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
@@ -48,7 +51,7 @@ function buildICS(event: EventItem): string {
   ].join("\r\n");
 }
 
-function googleUrl(event: EventItem): string {
+function googleUrl(event: CalendarEvent): string {
   const start = toStamp(event.date, event.time, 0);
   const end = toStamp(event.date, event.time, 2);
   const params = new URLSearchParams({
@@ -61,7 +64,7 @@ function googleUrl(event: EventItem): string {
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
-function downloadICS(event: EventItem) {
+function downloadICS(event: CalendarEvent) {
   const blob = new Blob([buildICS(event)], { type: "text/calendar;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -73,7 +76,7 @@ function downloadICS(event: EventItem) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export default function AddToCalendar({ event }: { event: EventItem }) {
+export default function AddToCalendar({ event }: { event: CalendarEvent }) {
   const [platform, setPlatform] = useState<Platform>("desktop");
   const [open, setOpen] = useState(false);
 
