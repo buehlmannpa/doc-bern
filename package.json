@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@vercel/blob": "^0.27.0",
@@ -16,11 +17,14 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.1.0",
-    "tailwindcss": "^4.1.0",
-    "typescript": "^5.8.0",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
-    "@types/node": "^22.0.0"
+    "pg": "^8.23.1",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.8.0"
   }
 }
