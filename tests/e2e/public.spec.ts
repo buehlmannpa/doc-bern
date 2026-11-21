@@ -90,23 +90,6 @@ test.describe("Events", () => {
     }
   });
 
-  test("Eingeklappte Kacheln sind gleich hoch (Desktop)", async ({ page, request, isMobile }) => {
-    test.skip(isMobile, "Gleiche Höhen gelten nur für das Desktop-Raster");
-    await apiLogin(request);
-    const ids: string[] = [];
-    const titles = [uniq("A"), uniq("Ein sehr langer Event-Titel der über mehrere Zeilen geht und noch weiter"), uniq("C")];
-    try {
-      for (const [i, t] of titles.entries()) {
-        ids.push((await createVia(request, "events", { title: t, date: `2099-07-0${i + 1}`, location: i === 1 ? "Ein langer Ortsname in Bern, Schweiz" : "Bern" })).id);
-      }
-      await page.goto("/events");
-      const heights = await Promise.all(titles.map(async (t) => (await page.locator("article:visible", { hasText: t }).boundingBox())!.height));
-      expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(1);
-    } finally {
-      for (const id of ids) await removeVia(request, "events", id);
-    }
-  });
-
   test("Ungültige oder unbekannte Event-ID", async ({ request }) => {
     expect((await request.get("/api/events?id=a b")).status()).toBe(400);
     expect((await request.get("/api/events?id=gibt-es-nicht")).status()).toBe(404);

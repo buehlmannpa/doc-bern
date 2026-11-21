@@ -7,12 +7,14 @@ import ImageField from "@/components/ImageField";
 import BlocksEditor from "@/components/BlocksEditor";
 import { collectImageUrls, dropEmptyBlocks, legacyToBlocks, sanitizeBlocks } from "@/lib/blocks";
 import type { EventItem, NewsBlock } from "@/lib/types";
+import { formatRange, groupByMonth, zurichToday } from "@/lib/event-dates";
 
 type Draft = Omit<EventItem, "id"> & { id?: string };
 
 const emptyDraft: Draft = {
   title: "",
   date: "",
+  endDate: null,
   time: "",
   location: "",
   description: "",
@@ -90,6 +92,10 @@ export default function EventsAdminPage() {
       setError("Titel und Datum sind erforderlich.");
       return;
     }
+    if (draft.endDate && draft.endDate < draft.date) {
+      setError("Das Enddatum darf nicht vor dem Startdatum liegen.");
+      return;
+    }
     // Leere Bausteine entfernen und die übrigen prüfen, bevor etwas gesendet wird
     let blocks: NewsBlock[];
     try {
@@ -125,23 +131,74 @@ export default function EventsAdminPage() {
     if (res.ok) load();
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = zurichToday();
+  const lastDayOf = (ev: EventItem) => (ev.endDate && ev.endDate > ev.date ? ev.endDate : ev.date);
 
-  // Reihenfolge: zuerst Entwürfe, dann anstehende Events (aufsteigend),
-  // zuunterst die vergangenen (neueste zuerst).
-  const groupOf = (ev: EventItem) => {
-    if (ev.status === "draft") return 0;
-    return new Date(ev.date) < today ? 2 : 1;
+  // Aufbau wie auf der Events-Seite: zuerst Entwürfe, dann anstehende Events nach Monaten (aufsteigend),
+  // zuunterst die vergangenen nach Monaten (neueste zuerst).
+  const drafts = events.filter((e) => e.status === "draft").sort((a, b) => a.date.localeCompare(b.date));
+  const published = events.filter((e) => e.status !== "draft");
+  const upcomingGroups = groupByMonth(published.filter((e) => lastDayOf(e) >= today), { direction: "asc" });
+  const pastGroups = groupByMonth(published.filter((e) => lastDayOf(e) < today), { direction: "desc" });
+  const sections: { title: string; groups: { key: string; label: string; events: EventItem[] }[] }[] = [
+    ...(drafts.length ? [{ title: "Entwürfe", groups: [{ key: "drafts", label: "", events: drafts }] }] : []),
+    ...(upcomingGroups.length ? [{ title: "Anstehend", groups: upcomingGroups }] : []),
+    ...(pastGroups.length ? [{ title: "Vergangen", groups: pastGroups }] : []),
+  ];
+
+  const renderCard = (ev: EventItem) => {
+    const isPast = lastDayOf(ev) < today;
+    return (
+      <div key={ev.id} className="glass-card p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-semibold text-sm">{ev.title}</h3>
+              {ev.status === "draft" && (
+                <span className="tag text-[10px]" style={{ background: "rgba(142,142,147,0.18)", color: "var(--text-secondary)" }}>
+                  Entwurf
+                </span>
+              )}
+              {ev.status === "published" && new Date(ev.publishAt) > new Date() && (
+                <span className="tag text-[10px]" style={{ background: "rgba(255,149,0,0.15)", color: "#ff9500" }}>
+                  Geplant
+                </span>
+              )}
+              {isPast && (
+                <span className="tag text-[10px]" style={{ background: "rgba(0,0,0,0.06)", color: "var(--text-secondary)" }}>
+                  Vergangen
+                </span>
+              )}
+            </div>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
+              {formatRange(ev)} · {ev.time} · {ev.location}
+            </p>
+            {ev.updatedBy && (
+              <p className="text-[10px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
+                zuletzt bearbeitet von {ev.updatedBy}
+              </p>
+            )}
+          </div>
+          <div className="flex gap-1 flex-shrink-0">
+            <button
+              onClick={() => openEdit(ev)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+              style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}
+            >
+              Bearbeiten
+            </button>
+            <button
+              onClick={() => remove(ev.id)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+              style={{ background: "rgba(255,59,48,0.1)", color: "#ff3b30" }}
+            >
+              Löschen
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
-  const sortedEvents = [...events].sort((a, b) => {
-    const ga = groupOf(a);
-    const gb = groupOf(b);
-    if (ga !== gb) return ga - gb;
-    const da = new Date(a.date).getTime();
-    const db = new Date(b.date).getTime();
-    return ga === 2 ? db - da : da - db; // vergangene absteigend, sonst aufsteigend
-  });
 
   return (
     <div>
@@ -166,59 +223,17 @@ export default function EventsAdminPage() {
               Noch keine Events. Erstelle das erste!
             </p>
           )}
-          {sortedEvents.map((ev) => {
-            const isPast = new Date(ev.date) < today;
-            return (
-              <div key={ev.id} className="glass-card p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-sm">{ev.title}</h3>
-                      {ev.status === "draft" && (
-                        <span className="tag text-[10px]" style={{ background: "rgba(142,142,147,0.18)", color: "var(--text-secondary)" }}>
-                          Entwurf
-                        </span>
-                      )}
-                      {ev.status === "published" && new Date(ev.publishAt) > new Date() && (
-                        <span className="tag text-[10px]" style={{ background: "rgba(255,149,0,0.15)", color: "#ff9500" }}>
-                          Geplant
-                        </span>
-                      )}
-                      {isPast && (
-                        <span className="tag text-[10px]" style={{ background: "rgba(0,0,0,0.06)", color: "var(--text-secondary)" }}>
-                          Vergangen
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
-                      {formatDate(ev.date)} · {ev.time} · {ev.location}
-                    </p>
-                    {ev.updatedBy && (
-                      <p className="text-[10px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
-                        zuletzt bearbeitet von {ev.updatedBy}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => openEdit(ev)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold"
-                      style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}
-                    >
-                      Bearbeiten
-                    </button>
-                    <button
-                      onClick={() => remove(ev.id)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold"
-                      style={{ background: "rgba(255,59,48,0.1)", color: "#ff3b30" }}
-                    >
-                      Löschen
-                    </button>
-                  </div>
+          {sections.map((sec) => (
+            <section key={sec.title} className="space-y-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wider pt-2 px-1" style={{ color: "var(--text-secondary)" }}>{sec.title}</h2>
+              {sec.groups.map((g) => (
+                <div key={g.key} className="space-y-3">
+                  {g.label && <h3 className="text-sm font-bold px-1 pt-1">{g.label}</h3>}
+                  {g.events.map(renderCard)}
                 </div>
-              </div>
-            );
-          })}
+              ))}
+            </section>
+          ))}
         </div>
       )}
 
@@ -244,6 +259,23 @@ export default function EventsAdminPage() {
               <input type="time" value={draft.time} onChange={(e) => setDraft({ ...draft, time: e.target.value })} className={inputCls} />
             </Field>
           </div>
+          <Field label="Enddatum (optional, für mehrtägige Events)">
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={draft.endDate || ""}
+                min={draft.date || undefined}
+                onChange={(e) => setDraft({ ...draft, endDate: e.target.value || null })}
+                className={inputCls}
+                aria-label="Enddatum"
+              />
+              {draft.endDate && (
+                <button type="button" onClick={() => setDraft({ ...draft, endDate: null })} className="px-3 rounded-xl text-xs font-semibold" style={{ background: "var(--field-bg)" }}>
+                  Entfernen
+                </button>
+              )}
+            </div>
+          </Field>
           <Field label="Ort">
             <input value={draft.location} onChange={(e) => setDraft({ ...draft, location: e.target.value })} className={inputCls} />
           </Field>

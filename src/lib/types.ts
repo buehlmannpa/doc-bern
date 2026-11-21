@@ -6,6 +6,7 @@ export interface EventItem {
   id: string;
   title: string;
   date: string; // ISO date YYYY-MM-DD
+  endDate?: string | null; // optional: letzter Tag eines mehrtägigen Events (YYYY-MM-DD)
   time: string; // HH:MM
   location: string;
   description: string;

@@ -8,6 +8,18 @@ import { getStoredImageUrls } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Optionales Enddatum prüfen: leer = eintägig. Muss ein gültiger Tag nach dem Starttag sein.
+function parseEndDate(date: string, raw: unknown): { endDate: string | null } | { error: string } {
+  if (raw === undefined || raw === null || raw === "") return { endDate: null };
+  if (typeof raw !== "string" || !DAY_RE.test(raw) || Number.isNaN(Date.parse(raw))) {
+    return { error: "Das Enddatum ist ungültig." };
+  }
+  if (raw < date) return { error: "Das Enddatum darf nicht vor dem Startdatum liegen." };
+  return { endDate: raw === date ? null : raw };
+}
+
 export async function GET() {
   try {
     const events = await getEvents();
@@ -40,9 +52,12 @@ export async function POST(request: Request) {
     }
     // Reiner Text zusätzlich in "description" ablegen (Rückfall, Kalender-Export)
     const description = blocks && blocks.length > 0 ? blocksToPlainText(blocks) : body.description || "";
+    const end = parseEndDate(body.date, body.endDate);
+    if ("error" in end) return NextResponse.json({ error: end.error }, { status: 400 });
     const event = await createEvent({
       title: body.title,
       date: body.date,
+      endDate: end.endDate,
       time: body.time || "",
       location: body.location || "",
       description,
@@ -78,10 +93,13 @@ export async function PUT(request: Request) {
     }
     // Reiner Text zusätzlich in "description" ablegen (Rückfall, Kalender-Export)
     const description = blocks && blocks.length > 0 ? blocksToPlainText(blocks) : body.description || "";
+    const end = parseEndDate(body.date, body.endDate);
+    if ("error" in end) return NextResponse.json({ error: end.error }, { status: 400 });
     const before = await getStoredImageUrls("events", body.id);
     const event = await updateEvent(body.id, {
       title: body.title,
       date: body.date,
+      endDate: end.endDate,
       time: body.time || "",
       location: body.location || "",
       description,

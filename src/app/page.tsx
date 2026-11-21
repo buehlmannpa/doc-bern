@@ -3,6 +3,7 @@ import Image from "next/image";
 import { getPublishedEvents, getPublishedNews, getBoard } from "@/lib/db";
 import { seedEvents, seedNews } from "@/lib/seed";
 import { toNewsListItem, toEventListItem } from "@/lib/blocks";
+import { lastDay, zurichToday } from "@/lib/event-dates";
 import type { EventListItem, NewsListItem } from "@/lib/types";
 import { board, boardIntro, hostettlerInfo, membershipUrl } from "@/data/content";
 import BoardMemberCard from "@/components/BoardMemberCard";
@@ -43,12 +44,11 @@ export default async function Home() {
   } catch {
     // Bei DB-Problemen Beispieldaten anzeigen, damit die Seite nie fehlschlägt.
   }
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
+  // Anstehend = noch nicht zu Ende (ein laufendes mehrtägiges Event zählt mit), "heute" in Schweizer Zeit
+  const today = zurichToday();
   const nextEvents = allEvents
-    .filter((e) => new Date(e.date) >= today)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .filter((e) => lastDay(e) >= today)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
     .slice(0, 2);
 
   const latestNews = allNews.filter((n) => !n.isArchived).slice(0, 2);

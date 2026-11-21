@@ -231,6 +231,75 @@ test.describe("Events im Admin", () => {
     }
   });
 
+  test("Mehrtägiges Event mit Enddatum anlegen: Bereich in der Liste und im Zeitstrahl", async ({ page }) => {
+    await loginUi(page);
+    const title = uniq("UI Mehrtägig");
+    await page.goto("/admin/events");
+    await page.getByRole("button", { name: /Neu/ }).first().click();
+    const m = modal(page);
+    await m.locator("input").first().fill(title);
+    await m.locator("input[type=date]").first().fill("2097-07-10");
+    await m.getByLabel("Enddatum").fill("2097-07-12");
+    await m.getByRole("button", { name: "Speichern", exact: true }).click();
+    await expect(page.locator("div.fixed.inset-0")).toHaveCount(0);
+    const card = page.locator("div.glass-card", { hasText: title });
+    await expect(card).toContainText(/10\. – .*12\. Juli 2097/);
+
+    await page.goto("/events");
+    await expect(page.locator('section[data-month="2097-07"] article', { hasText: title })).toContainText("10–12");
+
+    // Enddatum wieder entfernen: eintägig
+    await page.goto("/admin/events");
+    await page.locator("div.glass-card", { hasText: title }).getByRole("button", { name: "Bearbeiten" }).click();
+    await modal(page).getByRole("button", { name: "Entfernen" }).click();
+    await modal(page).getByRole("button", { name: "Speichern", exact: true }).click();
+    await expect(page.locator("div.fixed.inset-0")).toHaveCount(0);
+    await expect(page.locator("div.glass-card", { hasText: title })).not.toContainText("12. Juli 2097");
+    page.once("dialog", (d) => d.accept());
+    await page.locator("div.glass-card", { hasText: title }).getByRole("button", { name: "Löschen" }).click();
+    await expect(page.getByText(title)).toHaveCount(0);
+  });
+
+  test("Enddatum vor dem Startdatum wird abgelehnt (Oberfläche und Server)", async ({ page, request }) => {
+    await loginUi(page);
+    await page.goto("/admin/events");
+    await page.getByRole("button", { name: /Neu/ }).first().click();
+    const m = modal(page);
+    await m.locator("input").first().fill(uniq("Falsches Ende"));
+    await m.locator("input[type=date]").first().fill("2097-08-10");
+    await m.getByLabel("Enddatum").fill("2097-08-09");
+    await m.getByRole("button", { name: "Speichern", exact: true }).click();
+    await expect(m.getByText(/Enddatum darf nicht vor dem Startdatum/)).toBeVisible();
+
+    await apiLogin(request);
+    const bad = await request.post("/api/admin/events", { data: { title: "x", date: "2097-08-10", endDate: "2097-08-09" } });
+    expect(bad.status()).toBe(400);
+    const invalid = await request.post("/api/admin/events", { data: { title: "x", date: "2097-08-10", endDate: "morgen" } });
+    expect(invalid.status()).toBe(400);
+    const same = await createVia(request, "events", { title: uniq("Gleicher Tag"), date: "2097-08-10", endDate: "2097-08-10" });
+    const all = (await (await request.get("/api/admin/events")).json()).events as { id: string; endDate: string | null }[];
+    expect(all.find((e) => e.id === same.id)!.endDate).toBeNull(); // gleicher Tag = eintägig
+    await removeVia(request, "events", same.id);
+  });
+
+  test("Admin-Liste gruppiert nach Monat: Entwürfe, anstehend, vergangen", async ({ page, request }) => {
+    await apiLogin(request);
+    const d = await createVia(request, "events", { title: uniq("Liste Entwurf"), date: "2097-09-01", status: "draft" });
+    const f = await createVia(request, "events", { title: uniq("Liste Zukunft"), date: "2097-09-02" });
+    const p = await createVia(request, "events", { title: uniq("Liste Alt"), date: "2018-02-02" });
+    try {
+      await loginUi(page);
+      await page.goto("/admin/events");
+      await expect(page.getByRole("heading", { name: "Entwürfe" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Anstehend" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Vergangen", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "September 2097" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Februar 2018" })).toBeVisible();
+    } finally {
+      for (const e of [d, f, p]) await removeVia(request, "events", e.id);
+    }
+  });
+
   test("Event ohne Datum wird nicht gespeichert", async ({ page }) => {
     await loginUi(page);
     await page.goto("/admin/events");
