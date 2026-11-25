@@ -282,22 +282,98 @@ test.describe("Events im Admin", () => {
     await removeVia(request, "events", same.id);
   });
 
-  test("Admin-Liste gruppiert nach Monat: Entwürfe, anstehend, vergangen", async ({ page, request }) => {
+  test("Admin-Liste: aktuelles Jahr voll, frühere Jahre eingeklappt und erst beim Aufklappen geladen", async ({ page, request }) => {
     await apiLogin(request);
     const d = await createVia(request, "events", { title: uniq("Liste Entwurf"), date: "2097-09-01", status: "draft" });
     const f = await createVia(request, "events", { title: uniq("Liste Zukunft"), date: "2097-09-02" });
     const p = await createVia(request, "events", { title: uniq("Liste Alt"), date: "2018-02-02" });
     try {
       await loginUi(page);
+      const yearCalls: string[] = [];
+      page.on("request", (r) => { if (r.url().includes("/api/admin/events?year=")) yearCalls.push(r.url()); });
       await page.goto("/admin/events");
       await expect(page.getByRole("heading", { name: "Entwürfe" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Anstehend" })).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Vergangen", exact: true })).toBeVisible();
       await expect(page.getByRole("heading", { name: "September 2097" })).toBeVisible();
+      // Frühere Jahre: eingeklappt, nichts nachgeladen
+      await expect(page.getByRole("heading", { name: "Frühere Jahre" })).toBeVisible();
+      const year = page.getByRole("button", { name: /^2018/ });
+      await expect(year).toHaveAttribute("aria-expanded", "false");
+      await expect(page.locator("div.glass-card", { hasText: "Liste Alt" })).toHaveCount(0);
+      expect(yearCalls).toHaveLength(0);
+      // Aufklappen lädt die Events des Jahres
+      await year.click();
+      await expect(page.getByRole("heading", { name: "Februar 2018" })).toBeVisible();
+      await expect(page.locator("div.glass-card", { hasText: "Liste Alt" }).getByRole("button", { name: "Bearbeiten" })).toBeVisible();
+      expect(yearCalls).toHaveLength(1);
+      // Ein Event aus einem früheren Jahr lässt sich bearbeiten und die Liste bleibt aufgeklappt
+      await page.locator("div.glass-card", { hasText: "Liste Alt" }).getByRole("button", { name: "Bearbeiten" }).click();
+      await modal(page).getByRole("button", { name: "Speichern", exact: true }).click();
+      await expect(page.locator("div.fixed.inset-0")).toHaveCount(0);
+      await expect(year).toHaveAttribute("aria-expanded", "true");
       await expect(page.getByRole("heading", { name: "Februar 2018" })).toBeVisible();
     } finally {
       for (const e of [d, f, p]) await removeVia(request, "events", e.id);
     }
+  });
+
+  test("Admin-Schnittstelle für frühere Jahre: Prüfung und Inhalt", async ({ request }) => {
+    expect((await request.get("/api/admin/events?year=abc")).status()).toBe(401); // ohne Login
+    await apiLogin(request);
+    expect((await request.get("/api/admin/events?year=abc")).status()).toBe(400);
+    const old = await createVia(request, "events", { title: uniq("Alt API"), date: "2017-06-06" });
+    try {
+      const main = await (await request.get("/api/admin/events")).json();
+      expect(main.events.map((e: { id: string }) => e.id)).not.toContain(old.id); // frühere Jahre nicht in der Hauptliste
+      expect(main.pastYears.find((y: { year: number }) => y.year === 2017).count).toBeGreaterThanOrEqual(1);
+      const year = await (await request.get("/api/admin/events?year=2017")).json();
+      expect(year.events.map((e: { id: string }) => e.id)).toContain(old.id);
+    } finally {
+      await removeVia(request, "events", old.id);
+    }
+  });
+
+  test("Abbrechen-Knopf im Editor ist gut sichtbar (hell und dunkel)", async ({ page }) => {
+    await loginUi(page);
+    for (const scheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.goto("/admin/events");
+      await page.evaluate((m) => localStorage.setItem("doc-bern-theme", m), scheme);
+      await page.reload();
+      await page.getByRole("button", { name: /Neu/ }).first().click();
+      const btn = modal(page).getByRole("button", { name: "Abbrechen", exact: true });
+      const info = await btn.evaluate((el) => {
+        const cs = getComputedStyle(el);
+        const alpha = (c: string) => { const m = c.match(/[\d.]+/g)!.map(Number); return m.length > 3 ? m[3] : 1; };
+        return { bgAlpha: alpha(cs.backgroundColor), border: cs.borderTopWidth, color: cs.color };
+      });
+      expect(info.bgAlpha, scheme).toBeGreaterThan(0.03); // nicht transparent
+      expect(info.border, scheme).toBe("1px"); // sichtbarer Rand
+      const expected = await page.evaluate(() => { const e = document.createElement("span"); e.style.color = "var(--text-primary)"; document.body.appendChild(e); const c = getComputedStyle(e).color; e.remove(); return c; });
+      expect(info.color, scheme).toBe(expected); // Textfarbe wie der Haupttext
+      await btn.click();
+    }
+  });
+
+  test("Textfelder wachsen mit dem Inhalt mit", async ({ page }) => {
+    await loginUi(page);
+    await page.goto("/admin/events");
+    await page.getByRole("button", { name: /Neu/ }).first().click();
+    const m = modal(page);
+    await m.getByRole("button", { name: "Text", exact: true }).click();
+    const ta = m.locator('[aria-label^="Baustein 1: Text"] textarea');
+    const h0 = (await ta.boundingBox())!.height;
+    await ta.fill(Array.from({ length: 14 }, (_, i) => `Zeile ${i + 1}`).join("\n"));
+    await expect.poll(async () => (await ta.boundingBox())!.height).toBeGreaterThan(h0 + 100);
+    const fits = await ta.evaluate((el) => el.scrollHeight <= el.clientHeight + 1); // kein innerer Scrollbalken
+    expect(fits).toBe(true);
+    await ta.fill("kurz");
+    await expect.poll(async () => (await ta.boundingBox())!.height).toBeLessThan(h0 + 5); // schrumpft wieder
+    // Auch die Knöpfe Fett/Liste passen die Höhe an
+    await ta.fill("a\nb\nc\nd\ne");
+    await ta.selectText();
+    await m.getByRole("button", { name: "Aufzählung" }).click();
+    await expect(ta).toHaveValue(/^- a\n- b/);
   });
 
   test("Event ohne Datum wird nicht gespeichert", async ({ page }) => {

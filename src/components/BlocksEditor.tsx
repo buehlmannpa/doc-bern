@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CalloutTone, NewsBlock } from "@/lib/types";
 import { dropEmptyBlocks, isSafeHref } from "@/lib/blocks";
 import ImageField from "./ImageField";
+import AutoTextarea from "./AutoTextarea";
 import { LIMITS } from "@/lib/blocks";
 import { resizeImage } from "@/lib/image-resize";
 import { uploadImage } from "@/lib/upload-image";
@@ -132,7 +133,7 @@ function TextEditor({ value, onChange, rows = 5, placeholder }: { value: string;
           </div>
         </div>
       )}
-      <textarea ref={ref} value={value} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder} className={`${inputCls} resize-y`} />
+      <AutoTextarea ref={ref} value={value} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder} className={inputCls} />
     </div>
   );
 }

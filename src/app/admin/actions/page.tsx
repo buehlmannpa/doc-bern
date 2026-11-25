@@ -1,5 +1,6 @@
 "use client";
 
+import AutoTextarea from "@/components/AutoTextarea";
 import { useEffect, useState } from "react";
 import AdminNav from "@/components/AdminNav";
 import type { ActionItem } from "@/lib/types";
@@ -133,7 +134,7 @@ export default function ActionsAdminPage() {
 
       {draft && (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center" style={{ background: "rgba(0,0,0,0.4)" }} onClick={() => setDraft(null)}>
-          <div className="glass-strong w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="glass-strong modal-panel w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">{draft.id ? "Aktion bearbeiten" : "Neue Aktion"}</h2>
               <button onClick={() => setDraft(null)} className="text-sm" style={{ color: "var(--text-secondary)" }}>Schliessen</button>
@@ -155,12 +156,12 @@ export default function ActionsAdminPage() {
               </div>
               <label className="block">
                 <span className="text-xs font-semibold block mb-1.5" style={{ color: "var(--text-secondary)" }}>Beschreibung</span>
-                <textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} rows={5} className={inputCls} />
+                <AutoTextarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} rows={5} className={inputCls} />
               </label>
             </div>
             {error && <p className="text-xs mt-3" style={{ color: "#ff3b30" }}>{error}</p>}
-            <div className="flex gap-2 mt-5">
-              <button onClick={() => setDraft(null)} className="flex-1 py-3 rounded-xl text-sm font-semibold" style={{ background: "rgba(0,0,0,0.05)" }}>Abbrechen</button>
+            <div className="modal-actions flex gap-2">
+              <button onClick={() => setDraft(null)} className="flex-1 py-3 rounded-xl text-sm font-semibold" style={{ background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--hairline)" }}>Abbrechen</button>
               <button onClick={save} disabled={saving} className="flex-1 py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--accent-hex)", color: "var(--accent-foreground)" }}>
                 {saving ? "Speichern…" : "Speichern"}
               </button>

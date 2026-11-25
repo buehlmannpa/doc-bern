@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AdminNav from "@/components/AdminNav";
 import { settleUploads } from "@/lib/upload-tracker";
 import ImageField from "@/components/ImageField";
@@ -56,6 +56,30 @@ export default function EventsAdminPage() {
   const [error, setError] = useState("");
   const [editorKey, setEditorKey] = useState(0); // neuer Schlüssel = Editor wird frisch aufgebaut
   const [legacyNote, setLegacyNote] = useState(false);
+  // Frühere Jahre: nur Jahr und Anzahl, die Events werden erst beim Aufklappen geladen
+  const [pastYears, setPastYears] = useState<{ year: number; count: number }[]>([]);
+  const [openYears, setOpenYears] = useState<Record<number, boolean>>({});
+  const [yearEvents, setYearEvents] = useState<Record<number, EventItem[] | "loading" | "error">>({});
+  const openYearsRef = useRef(openYears);
+  openYearsRef.current = openYears;
+
+  const loadYear = useCallback(async (year: number) => {
+    setYearEvents((d) => ({ ...d, [year]: d[year] && d[year] !== "error" ? d[year] : "loading" }));
+    try {
+      const res = await fetch(`/api/admin/events?year=${year}`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setYearEvents((d) => ({ ...d, [year]: data.events || [] }));
+    } catch {
+      setYearEvents((d) => ({ ...d, [year]: "error" }));
+    }
+  }, []);
+
+  function toggleYear(year: number) {
+    const next = !openYears[year];
+    setOpenYears((o) => ({ ...o, [year]: next }));
+    if (next && !Array.isArray(yearEvents[year])) loadYear(year);
+  }
 
   function openNew() {
     setDraft({ ...emptyDraft, publishAt: new Date().toISOString() });
@@ -79,7 +103,10 @@ export default function EventsAdminPage() {
     const res = await fetch("/api/admin/events");
     const data = await res.json();
     setEvents(data.events || []);
+    setPastYears(data.pastYears || []);
     setLoading(false);
+    // Bereits aufgeklappte frühere Jahre neu laden (nach Speichern/Löschen)
+    for (const y of Object.keys(openYearsRef.current)) if (openYearsRef.current[Number(y)]) loadYear(Number(y));
   }
 
   useEffect(() => {
@@ -234,6 +261,55 @@ export default function EventsAdminPage() {
               ))}
             </section>
           ))}
+
+          {pastYears.length > 0 && (
+            <section className="space-y-2" aria-labelledby="frueher">
+              <h2 id="frueher" className="text-xs font-semibold uppercase tracking-wider pt-2 px-1" style={{ color: "var(--text-secondary)" }}>
+                Frühere Jahre
+              </h2>
+              {pastYears.map(({ year, count }) => {
+                const isOpen = Boolean(openYears[year]);
+                const data = yearEvents[year];
+                return (
+                  <div key={year} className="glass-card no-press overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => toggleYear(year)}
+                      aria-expanded={isOpen}
+                      aria-controls={`admin-past-${year}`}
+                      className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-transform active:scale-[0.99]"
+                    >
+                      <span className="font-bold text-base">{year}</span>
+                      <span className="flex items-center gap-2 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+                        {count} {count === 1 ? "Event" : "Events"}
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </span>
+                    </button>
+                    {isOpen && (
+                      <div id={`admin-past-${year}`} className="px-2 pb-2 pt-2 space-y-3 border-t border-[color:var(--hairline)]">
+                        {(data === undefined || data === "loading") && <p className="text-sm px-2 py-2" style={{ color: "var(--text-secondary)" }}>Lädt…</p>}
+                        {data === "error" && (
+                          <p className="text-sm px-2 py-2" role="alert" style={{ color: "#ff3b30" }}>
+                            Konnte nicht geladen werden.{" "}
+                            <button type="button" className="font-semibold underline" onClick={() => loadYear(year)}>Erneut versuchen</button>
+                          </p>
+                        )}
+                        {Array.isArray(data) &&
+                          groupByMonth(data, { direction: "desc" }).map((g) => (
+                            <div key={g.key} className="space-y-2">
+                              <h3 className="text-sm font-bold px-2 pt-1">{g.label}</h3>
+                              {g.events.map(renderCard)}
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </section>
+          )}
         </div>
       )}
 
@@ -363,7 +439,7 @@ function EditorModal({
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center" style={{ background: "rgba(0,0,0,0.4)" }} onClick={onClose}>
       <div
-        className="glass-strong w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl p-5"
+        className="glass-strong modal-panel w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
@@ -372,8 +448,8 @@ function EditorModal({
         </div>
         <div className="space-y-4">{children}</div>
         {error && <p className="text-xs mt-3" style={{ color: "#ff3b30" }}>{error}</p>}
-        <div className="flex gap-2 mt-5 sticky bottom-0 pt-2">
-          <button onClick={onClose} className="flex-1 py-3 rounded-xl text-sm font-semibold" style={{ background: "rgba(0,0,0,0.05)" }}>
+        <div className="modal-actions flex gap-2">
+          <button onClick={onClose} className="flex-1 py-3 rounded-xl text-sm font-semibold" style={{ background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--hairline)" }}>
             Abbrechen
           </button>
           <button onClick={onSave} disabled={saving} className="flex-1 py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--accent-hex)", color: "var(--accent-foreground)" }}>

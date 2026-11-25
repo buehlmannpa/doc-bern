@@ -311,6 +311,56 @@ export async function getEvents(): Promise<EventItem[]> {
   return rows.map(rowToEvent);
 }
 
+const lastDayOfSeed = (e: EventItem) => (e.endDate && e.endDate > e.date ? e.endDate : e.date);
+
+// Admin-Liste: alle Entwürfe sowie alle Events des aktuellen Jahres und später (ab `yearStart`, "YYYY-01-01").
+// Frühere Jahre werden erst beim Aufklappen geladen (getAdminEventsOfYear).
+export async function getAdminEvents(yearStart: string): Promise<EventItem[]> {
+  if (!isDbConfigured()) return seedEvents.filter((e) => e.status === "draft" || lastDayOfSeed(e) >= yearStart);
+  const { rows } = await readQuery(() => sql`
+    SELECT * FROM events
+    WHERE status = 'draft' OR COALESCE(end_date, date) >= ${yearStart}::date
+    ORDER BY date ASC, time ASC;
+  `);
+  return rows.map(rowToEvent);
+}
+
+// Frühere Jahre (vor `yearStart`): nur Jahr und Anzahl der Events, ohne Entwürfe (die stehen in der Hauptliste).
+export async function getAdminPastYears(yearStart: string): Promise<{ year: number; count: number }[]> {
+  if (!isDbConfigured()) {
+    const counts = new Map<number, number>();
+    for (const e of seedEvents) {
+      if (e.status !== "draft" && lastDayOfSeed(e) < yearStart) {
+        const y = Number(e.date.slice(0, 4));
+        counts.set(y, (counts.get(y) ?? 0) + 1);
+      }
+    }
+    return [...counts].map(([year, count]) => ({ year, count })).sort((a, b) => b.year - a.year);
+  }
+  const { rows } = await readQuery(() => sql`
+    SELECT EXTRACT(YEAR FROM date)::int AS year, COUNT(*)::int AS count
+    FROM events
+    WHERE status <> 'draft' AND COALESCE(end_date, date) < ${yearStart}::date
+    GROUP BY 1
+    ORDER BY 1 DESC;
+  `);
+  return rows.map((r: any) => ({ year: Number(r.year), count: Number(r.count) }));
+}
+
+// Events eines früheren Jahres (nach Starttag), wird beim Aufklappen des Jahres geladen.
+export async function getAdminEventsOfYear(year: number, yearStart: string): Promise<EventItem[]> {
+  if (!isDbConfigured()) {
+    return seedEvents.filter((e) => e.status !== "draft" && Number(e.date.slice(0, 4)) === year && lastDayOfSeed(e) < yearStart);
+  }
+  const { rows } = await readQuery(() => sql`
+    SELECT * FROM events
+    WHERE status <> 'draft' AND EXTRACT(YEAR FROM date)::int = ${year}
+      AND COALESCE(end_date, date) < ${yearStart}::date
+    ORDER BY date ASC, time ASC;
+  `);
+  return rows.map(rowToEvent);
+}
+
 // Öffentlich sichtbare Events (veröffentlicht und Publikationszeitpunkt erreicht). Gecacht.
 // Liefert nur die leichten Felder; der Inhalt kommt über getPublishedEventDetail.
 export const getPublishedEvents = unstable_cache(

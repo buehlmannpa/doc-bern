@@ -118,16 +118,16 @@ export default function AddToCalendar({ event }: { event: CalendarEvent }) {
       <div className="flex gap-2">
         <button
           onClick={handlePrimary}
-          className="flex-1 flex items-center justify-center gap-1.5 text-sm font-semibold py-2.5 rounded-xl"
+          className="flex-1 min-w-0 flex items-center justify-center gap-1.5 text-[13px] sm:text-sm leading-tight font-semibold py-2.5 px-2 rounded-xl text-center"
           style={{ background: "var(--accent-hex)", color: "var(--accent-foreground)" }}
         >
-          {icon}
-          Zum Kalender hinzufügen
+          <span className="flex-shrink-0">{icon}</span>
+          <span className="min-w-0">Zum Kalender hinzufügen</span>
         </button>
         <button
           onClick={() => setOpen((o) => !o)}
           aria-label="Weitere Kalender-Optionen"
-          className="px-3 rounded-xl text-sm font-semibold"
+          className="w-11 flex-shrink-0 rounded-xl text-sm font-semibold"
           style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}
         >
           ⋯

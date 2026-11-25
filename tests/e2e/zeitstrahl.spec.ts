@@ -214,4 +214,51 @@ test.describe("Zeitstrahl", () => {
       await removeVia(request, "events", ev.id);
     }
   });
+
+  test("Klick auf ein Event in einem Jahr löst keinen Druck-Effekt auf dem ganzen Jahr aus", async ({ page, request, isMobile }) => {
+    test.skip(isMobile, "Mausdruck nur am Desktop prüfbar");
+    await apiLogin(request);
+    const title = uniq("Druck");
+    const ev = await createVia(request, "events", { title, date: "2016-04-04" });
+    try {
+      await page.goto("/events");
+      await page.getByRole("button", { name: /^2016/ }).click();
+      const wrapper = page.locator("#past-2016").locator("xpath=..");
+      await expect(wrapper).toHaveClass(/no-press/);
+      const btn = page.locator("article", { hasText: title }).locator("button[aria-expanded]");
+      const box = (await btn.boundingBox())!;
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      const transform = await wrapper.evaluate((el) => getComputedStyle(el).transform);
+      await page.mouse.up();
+      expect(transform).toBe("none"); // das Jahr bleibt unverändert, solange man auf das Event drückt
+    } finally {
+      await removeVia(request, "events", ev.id);
+    }
+  });
+
+  test("Aufgeklapptes Event in einem Jahr: Kalender-Knopf hat genug Platz (auch am Smartphone)", async ({ page, request }) => {
+    await apiLogin(request);
+    const title = uniq("Platz");
+    const ev = await createVia(request, "events", { title, date: "2015-05-05", description: "Beschreibung" });
+    try {
+      await page.goto("/events");
+      await page.getByRole("button", { name: /^2015/ }).click();
+      const card = page.locator("article", { hasText: title });
+      await card.locator("button[aria-expanded]").click();
+      const btn = card.getByRole("button", { name: /Zum Kalender hinzufügen/ });
+      await expect(btn).toBeVisible();
+      const box = (await btn.boundingBox())!;
+      const card_ = (await card.boundingBox())!;
+      expect(box.height).toBeLessThanOrEqual(56); // höchstens zwei Zeilen
+      expect(box.width).toBeGreaterThanOrEqual(Math.min(220, card_.width * 0.6));
+      // Am Smartphone nutzt die Karte die Breite: wenig Abstand links/rechts zum Jahresrahmen
+      if (page.viewportSize()!.width < 500) {
+        const wrapper = (await page.locator("#past-2015").boundingBox())!;
+        expect(wrapper.width - card_.width).toBeLessThan(56);
+      }
+    } finally {
+      await removeVia(request, "events", ev.id);
+    }
+  });
 });

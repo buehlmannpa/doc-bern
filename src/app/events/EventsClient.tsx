@@ -99,9 +99,9 @@ function DayChip({ event }: { event: EventListItem }) {
 }
 
 // Bildfläche: oben (Smartphone) bzw. links (breite Ansicht). Events ohne Bild haben keine Bildfläche (spart Platz).
-function Thumb({ src, alt }: { src: string; alt: string }) {
+function Thumb({ src, alt, compact }: { src: string; alt: string; compact?: boolean }) {
   return (
-    <div className="relative overflow-hidden w-full h-36 sm:w-48 lg:w-60 sm:h-auto sm:min-h-[8.5rem] flex-shrink-0">
+    <div className={`relative overflow-hidden w-full ${compact ? "h-28" : "h-36"} sm:w-48 lg:w-60 sm:h-auto sm:min-h-[8.5rem] flex-shrink-0`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt={alt} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
     </div>
@@ -109,7 +109,7 @@ function Thumb({ src, alt }: { src: string; alt: string }) {
 }
 
 function EventCard({
-  event, expanded, onToggle, state, onRetry, today,
+  event, expanded, onToggle, state, onRetry, today, compact,
 }: {
   event: EventListItem;
   expanded: boolean;
@@ -117,6 +117,7 @@ function EventCard({
   state?: DetailState;
   onRetry: () => void;
   today: string;
+  compact?: boolean; // verschachtelt (innerhalb eines aufgeklappten Jahres): weniger Abstand, damit mehr Platz bleibt
 }) {
   const over = isOver(event, today);
   const prefetch = () => { if (!cachedDetail(event.id)) loadDetail(event.id).catch(() => {}); };
@@ -131,8 +132,8 @@ function EventCard({
         aria-expanded={expanded}
         className="w-full text-left flex flex-col sm:flex-row sm:items-stretch"
       >
-        {event.imageUrl && <Thumb src={event.imageUrl} alt={event.title} />}
-        <div className="flex-1 min-w-0 flex gap-4 p-4 sm:p-5">
+        {event.imageUrl && <Thumb src={event.imageUrl} alt={event.title} compact={compact} />}
+        <div className={`flex-1 min-w-0 flex ${compact ? "gap-3 p-3" : "gap-4 p-4"} sm:p-5`}>
           <DayChip event={event} />
           <div className="min-w-0 flex-1">
             {(over || event.badge) && (
@@ -188,7 +189,7 @@ function EventCard({
 
       {/* Nur dieser Bereich kommt beim Aufklappen dazu (wird erst jetzt geladen) */}
       {expanded && (
-        <div className="px-5 pb-5 border-t border-[color:var(--hairline)]">
+        <div className={`${compact ? "px-3 pb-3" : "px-5 pb-5"} border-t border-[color:var(--hairline)]`}>
           {(!state || state.status === "loading") && <Skeleton />}
           {state?.status === "error" && (
             <div className="pt-4 text-sm" role="alert">
@@ -231,20 +232,21 @@ function EventCard({
 
 // Linie links, pro Monat ein Punkt mit Monatsname, rechts davon (am Smartphone darunter) die Events untereinander.
 function Timeline({
-  groups, renderEvent, muted,
+  groups, renderEvent, muted, compact,
 }: {
   groups: MonthGroup<EventListItem>[];
-  renderEvent: (e: EventListItem) => React.ReactNode;
+  renderEvent: (e: EventListItem, compact: boolean) => React.ReactNode;
   muted?: boolean;
+  compact?: boolean; // schmalere Linie und weniger Abstand (innerhalb eines aufgeklappten Jahres)
 }) {
   return (
     <div className="relative" data-testid="timeline">
-      <div aria-hidden="true" className="absolute top-2 bottom-4 left-[0.9rem] w-0.5 rounded-full" style={{ background: "var(--hairline)" }} />
+      <div aria-hidden="true" className={`absolute top-2 bottom-4 w-0.5 rounded-full ${compact ? "left-[0.45rem] sm:left-[0.9rem]" : "left-[0.9rem]"}`} style={{ background: "var(--hairline)" }} />
       {groups.map((g) => (
-        <section key={g.key} aria-labelledby={`m-${g.key}`} data-month={g.key} className="relative pl-10 lg:pl-[12rem] pb-7 last:pb-2">
+        <section key={g.key} aria-labelledby={`m-${g.key}`} data-month={g.key} className={`relative ${compact ? "pl-6 sm:pl-10 pb-4 sm:pb-7" : "pl-10 pb-7"} lg:pl-[12rem] last:pb-2`}>
           <span
             aria-hidden="true"
-            className="absolute left-[0.4rem] top-0.5 w-[1.1rem] h-[1.1rem] rounded-full"
+            className={`absolute top-0.5 rounded-full ${compact ? "left-0 sm:left-[0.4rem] w-[0.9rem] h-[0.9rem] sm:w-[1.1rem] sm:h-[1.1rem]" : "left-[0.4rem] w-[1.1rem] h-[1.1rem]"}`}
             style={{
               background: muted ? "var(--field-bg)" : "rgba(var(--accent), 0.25)",
               border: `2px solid ${muted ? "var(--text-secondary)" : "var(--accent-hex)"}`,
@@ -252,11 +254,11 @@ function Timeline({
           />
           <h2
             id={`m-${g.key}`}
-            className="text-lg font-bold tracking-tight mb-3 leading-snug lg:absolute lg:left-10 lg:top-0 lg:mb-0 lg:w-[9.5rem]"
+            className={`${compact ? "text-base sm:text-lg mb-2" : "text-lg mb-3"} font-bold tracking-tight leading-snug lg:absolute lg:left-10 lg:top-0 lg:mb-0 lg:w-[9.5rem]`}
           >
             {g.label}
           </h2>
-          <div className="space-y-3">{g.events.map((e) => <div key={e.id}>{renderEvent(e)}</div>)}</div>
+          <div className={compact ? "space-y-2 sm:space-y-3" : "space-y-3"}>{g.events.map((e) => <div key={e.id}>{renderEvent(e, Boolean(compact))}</div>)}</div>
         </section>
       ))}
     </div>
@@ -272,7 +274,7 @@ function PastYears({
 }: {
   years: { year: number; count: number }[];
   today: string;
-  renderEvent: (e: EventListItem) => React.ReactNode;
+  renderEvent: (e: EventListItem, compact: boolean) => React.ReactNode;
 }) {
   const [open, setOpen] = useState<Record<number, boolean>>({});
   const [data, setData] = useState<Record<number, YearState>>({});
@@ -306,13 +308,14 @@ function PastYears({
           const isOpen = Boolean(open[year]);
           const state = data[year];
           return (
-            <div key={year} className="glass-card overflow-hidden">
+            // Kein Druck-Effekt auf der ganzen Karte (no-press): sonst wirkt ein Klick auf ein Event darin wie ein Klick auf das Jahr
+            <div key={year} className="glass-card no-press overflow-hidden">
               <button
                 type="button"
                 onClick={() => toggle(year)}
                 aria-expanded={isOpen}
                 aria-controls={`past-${year}`}
-                className="w-full flex items-center justify-between gap-3 px-5 py-3 text-left"
+                className="w-full flex items-center justify-between gap-3 px-5 py-3 text-left transition-transform active:scale-[0.99]"
               >
                 <span className="font-bold text-base">
                   {year}
@@ -325,7 +328,7 @@ function PastYears({
                 </span>
               </button>
               {isOpen && (
-                <div id={`past-${year}`} className="px-4 pb-4 pt-2 border-t border-[color:var(--hairline)]">
+                <div id={`past-${year}`} className="px-2 pb-2 pt-1.5 sm:px-4 sm:pb-4 sm:pt-2 border-t border-[color:var(--hairline)]">
                   {(!state || state.status === "loading") && <Skeleton />}
                   {state?.status === "error" && (
                     <div className="py-3 text-sm" role="alert">
@@ -343,7 +346,7 @@ function PastYears({
                   {state?.status === "ok" && (
                     state.events.length === 0
                       ? <p className="py-3 text-sm" style={{ color: "var(--text-secondary)" }}>Keine Events.</p>
-                      : <div className="pt-3"><Timeline groups={groupByMonth(state.events, { direction: "desc" })} renderEvent={renderEvent} muted /></div>
+                      : <div className="pt-2 sm:pt-3"><Timeline groups={groupByMonth(state.events, { direction: "desc" })} renderEvent={renderEvent} muted compact /></div>
                   )}
                 </div>
               )}
@@ -388,8 +391,9 @@ export default function EventsClient({
     fetchDetail(id);
   };
 
-  const renderEvent = (event: EventListItem) => (
+  const renderEvent = (event: EventListItem, compact: boolean) => (
     <EventCard
+      compact={compact}
       event={event}
       expanded={expandedId === event.id}
       onToggle={() => toggle(event.id)}
