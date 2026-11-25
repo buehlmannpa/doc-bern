@@ -22,6 +22,9 @@ const icons: Record<string, React.ReactNode> = {
   board: (
     <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
   ),
+  images: (
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  ),
   users: (
     <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3M13 7a4 4 0 11-8 0 4 4 0 018 0zM3 21v-1a6 6 0 0112 0v1H3z" />
   ),
@@ -47,7 +50,10 @@ export default async function AdminDashboard() {
     { href: "/admin/partners", label: "Partner", icon: "partners" },
     { href: "/admin/board", label: "Vorstand", icon: "board" },
     ...(user?.role === "superadmin"
-      ? [{ href: "/admin/users", label: "Benutzer", icon: "users" }]
+      ? [
+          { href: "/admin/users", label: "Benutzer", icon: "users" },
+          { href: "/admin/images", label: "Bilder", icon: "images" },
+        ]
       : []),
   ];
 
