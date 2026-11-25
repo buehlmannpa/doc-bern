@@ -32,7 +32,7 @@ export default function AdminNav() {
     { href: "/admin/partners", label: "Partner" },
     { href: "/admin/board", label: "Vorstand" },
     ...(me?.role === "superadmin"
-      ? [{ href: "/admin/users", label: "Benutzer" }, { href: "/admin/images", label: "Bilder" }]
+      ? [{ href: "/admin/users", label: "Benutzer" }, { href: "/admin/images", label: "Bilder" }, { href: "/admin/log", label: "Protokoll" }]
       : []),
   ];
 

@@ -40,6 +40,8 @@ export default defineConfig({
       BLOB_READ_WRITE_TOKEN: "",
       // Test-Bildspeicher im Arbeitsspeicher für die Tests der Bild-Verkleinerung (nur hier gesetzt)
       E2E_FAKE_BLOB: "1",
+      // Protokoll: Aufräumen alter Einträge bei jedem Schreiben (im Betrieb höchstens alle 6 Stunden)
+      AUDIT_PURGE_MIN_INTERVAL_MS: "0",
     },
   },
 });

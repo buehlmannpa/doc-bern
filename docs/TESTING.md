@@ -22,6 +22,9 @@ pass» → `Tests`).
 - **Bilder verkleinern** (Admin → Bilder, nur Super-Admins): Prüfung, Vorschau, Verkleinern mit Bestätigung, Adresse überall
   ersetzt, Original erst danach gelöscht, Fehlerfälle lassen alles unverändert. Der Bildspeicher ist dabei ein Test-Speicher im
   Arbeitsspeicher (`E2E_FAKE_BLOB=1`, nur in der Test-Konfiguration gesetzt).
+- **Protokoll** (Admin → Protokoll, nur Super-Admins): Zugriffsschutz, Anmeldungen (Gerät, Fehlversuche nur einmal, Abmeldung),
+  Erstellen/Ändern/Löschen in allen Bereichen mit Person und Titel, geänderte Felder statt Inhalte, nie Passwörter, Filter
+  (Person, Bereich, Aktion, Text, Zeitraum, Nur Wichtiges), Blättern, Logrotate nach 3 Monaten, Oberfläche.
 - **Funktionen** (Desktop und Smartphone): Kalender-Export (.ics-Inhalt, Google-Link), Hell/Dunkel/Automatisch mit
   Merken nach dem Neuladen, Kontrastwerte in beiden Modi, Startseite mit Event, News und Vorstand.
 

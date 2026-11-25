@@ -6,6 +6,8 @@ import type { EventItem, NewsBlock } from "@/lib/types";
 import { blocksToPlainText, collectImageUrls, parseBlocks } from "@/lib/blocks";
 import { deleteUnusedBlobs, deleteReplacedBlobs } from "@/lib/blob-cleanup";
 import { getStoredImageUrls } from "@/lib/db";
+import { logAudit, auditDiff } from "@/lib/audit";
+import { getAuditSnapshot } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +83,7 @@ export async function POST(request: Request) {
       publishAt: body.publishAt || new Date().toISOString(),
       updatedBy: await currentUsername(),
     });
+    await logAudit(request, { action: "create", entity: "event", id: event.id, label: event.title });
     return NextResponse.json({ event });
   } catch (e) {
     return NextResponse.json(
@@ -107,6 +110,7 @@ export async function PUT(request: Request) {
     const description = blocks && blocks.length > 0 ? blocksToPlainText(blocks) : body.description || "";
     const end = parseEndDate(body.date, body.endDate);
     if ("error" in end) return NextResponse.json({ error: end.error }, { status: 400 });
+    const snap = await getAuditSnapshot("event", body.id);
     const before = await getStoredImageUrls("events", body.id);
     const event = await updateEvent(body.id, {
       title: body.title,
@@ -124,6 +128,7 @@ export async function PUT(request: Request) {
       updatedBy: await currentUsername(),
     });
     await deleteReplacedBlobs(before, collectImageUrls(event.imageUrl, event.blocks));
+    await logAudit(request, { action: "update", entity: "event", id: event.id, label: event.title, detail: auditDiff("event", snap, event as unknown as Record<string, unknown>) });
     return NextResponse.json({ event });
   } catch (e) {
     return NextResponse.json(
@@ -140,8 +145,10 @@ export async function DELETE(request: Request) {
     if (!id) {
       return NextResponse.json({ error: "Keine id angegeben." }, { status: 400 });
     }
+    const snap = await getAuditSnapshot("event", id);
     const urls = await deleteEvent(id);
     const cleanup = await deleteUnusedBlobs(urls);
+    if (snap) await logAudit(request, { action: "delete", entity: "event", id, label: String(snap.title) });
     return NextResponse.json({ ok: true, deletedImages: cleanup.deleted, imageCleanupFailed: cleanup.failed });
   } catch (e) {
     return NextResponse.json(
