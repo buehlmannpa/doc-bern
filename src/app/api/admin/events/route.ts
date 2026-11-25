@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createEvent, getEvents, updateEvent, deleteEvent, isDbConfigured } from "@/lib/db";
+import { createEvent, getAdminEvents, getAdminEventsOfYear, getAdminPastYears, updateEvent, deleteEvent, isDbConfigured } from "@/lib/db";
+import { zurichToday } from "@/lib/event-dates";
 import { currentUsername } from "@/lib/session";
 import type { EventItem, NewsBlock } from "@/lib/types";
 import { blocksToPlainText, collectImageUrls, parseBlocks } from "@/lib/blocks";
@@ -8,10 +9,33 @@ import { getStoredImageUrls } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Optionales Enddatum prüfen: leer = eintägig. Muss ein gültiger Tag nach dem Starttag sein.
+function parseEndDate(date: string, raw: unknown): { endDate: string | null } | { error: string } {
+  if (raw === undefined || raw === null || raw === "") return { endDate: null };
+  if (typeof raw !== "string" || !DAY_RE.test(raw) || Number.isNaN(Date.parse(raw))) {
+    return { error: "Das Enddatum ist ungültig." };
+  }
+  if (raw < date) return { error: "Das Enddatum darf nicht vor dem Startdatum liegen." };
+  return { endDate: raw === date ? null : raw };
+}
+
+// Ohne Parameter: Entwürfe und Events ab dem aktuellen Jahr, dazu die Liste früherer Jahre (nur Jahr und Anzahl).
+// Mit ?year=YYYY: die Events dieses früheren Jahres (wird beim Aufklappen geladen).
+export async function GET(request: Request) {
   try {
-    const events = await getEvents();
-    return NextResponse.json({ events });
+    const yearStart = `${zurichToday().slice(0, 4)}-01-01`;
+    const rawYear = new URL(request.url).searchParams.get("year");
+    if (rawYear !== null) {
+      const year = Number(rawYear);
+      if (!/^\d{4}$/.test(rawYear) || year < 1990 || year > 2200) {
+        return NextResponse.json({ error: "Ungültiges Jahr." }, { status: 400 });
+      }
+      return NextResponse.json({ events: await getAdminEventsOfYear(year, yearStart) });
+    }
+    const [events, pastYears] = await Promise.all([getAdminEvents(yearStart), getAdminPastYears(yearStart)]);
+    return NextResponse.json({ events, pastYears });
   } catch (e) {
     return NextResponse.json(
       { error: `Datenbankfehler: ${(e as Error).message}` },
@@ -40,9 +64,12 @@ export async function POST(request: Request) {
     }
     // Reiner Text zusätzlich in "description" ablegen (Rückfall, Kalender-Export)
     const description = blocks && blocks.length > 0 ? blocksToPlainText(blocks) : body.description || "";
+    const end = parseEndDate(body.date, body.endDate);
+    if ("error" in end) return NextResponse.json({ error: end.error }, { status: 400 });
     const event = await createEvent({
       title: body.title,
       date: body.date,
+      endDate: end.endDate,
       time: body.time || "",
       location: body.location || "",
       description,
@@ -78,10 +105,13 @@ export async function PUT(request: Request) {
     }
     // Reiner Text zusätzlich in "description" ablegen (Rückfall, Kalender-Export)
     const description = blocks && blocks.length > 0 ? blocksToPlainText(blocks) : body.description || "";
+    const end = parseEndDate(body.date, body.endDate);
+    if ("error" in end) return NextResponse.json({ error: end.error }, { status: 400 });
     const before = await getStoredImageUrls("events", body.id);
     const event = await updateEvent(body.id, {
       title: body.title,
       date: body.date,
+      endDate: end.endDate,
       time: body.time || "",
       location: body.location || "",
       description,

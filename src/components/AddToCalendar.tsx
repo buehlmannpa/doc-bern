@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { EventItem } from "@/lib/types";
 
 // Nur diese Felder werden gebraucht (Beschreibung kommt aus dem beim Aufklappen geladenen Inhalt)
-type CalendarEvent = Pick<EventItem, "id" | "title" | "date" | "time" | "location" | "description">;
+type CalendarEvent = Pick<EventItem, "id" | "title" | "date" | "time" | "location" | "description"> & { endDate?: string | null };
 
 type Platform = "apple" | "android" | "desktop";
 
@@ -28,9 +28,21 @@ function toStamp(dateStr: string, timeStr: string, addHours = 0): string {
   return `${dt.getFullYear()}${p(dt.getMonth() + 1)}${p(dt.getDate())}T${p(dt.getHours())}${p(dt.getMinutes())}00`;
 }
 
+// Mehrtägige Events sind ganztägig: Der Kalender erwartet als Ende den Tag NACH dem letzten Tag ("YYYYMMDD")
+function dayStamp(dateStr: string, addDays = 0): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, (m || 1) - 1, (d || 1) + addDays));
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${dt.getUTCFullYear()}${p(dt.getUTCMonth() + 1)}${p(dt.getUTCDate())}`;
+}
+const isMultiDay = (e: CalendarEvent) => Boolean(e.endDate && e.endDate > e.date);
+
 function buildICS(event: CalendarEvent): string {
+  const multi = isMultiDay(event);
   const start = toStamp(event.date, event.time, 0);
   const end = toStamp(event.date, event.time, 2); // Standarddauer 2h
+  const startLine = multi ? `DTSTART;VALUE=DATE:${dayStamp(event.date)}` : `DTSTART:${start}`;
+  const endLine = multi ? `DTEND;VALUE=DATE:${dayStamp(event.endDate as string, 1)}` : `DTEND:${end}`;
   const esc = (s: string) => (s || "").replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
   const uid = `${event.id}@doc-bern`;
   return [
@@ -41,8 +53,8 @@ function buildICS(event: CalendarEvent): string {
     "BEGIN:VEVENT",
     `UID:${uid}`,
     `DTSTAMP:${start}`,
-    `DTSTART:${start}`,
-    `DTEND:${end}`,
+    startLine,
+    endLine,
     `SUMMARY:${esc(event.title)}`,
     `DESCRIPTION:${esc(event.description)}`,
     `LOCATION:${esc(event.location)}`,
@@ -52,8 +64,9 @@ function buildICS(event: CalendarEvent): string {
 }
 
 function googleUrl(event: CalendarEvent): string {
-  const start = toStamp(event.date, event.time, 0);
-  const end = toStamp(event.date, event.time, 2);
+  const multi = isMultiDay(event);
+  const start = multi ? dayStamp(event.date) : toStamp(event.date, event.time, 0);
+  const end = multi ? dayStamp(event.endDate as string, 1) : toStamp(event.date, event.time, 2);
   const params = new URLSearchParams({
     action: "TEMPLATE",
     text: event.title,
@@ -105,16 +118,16 @@ export default function AddToCalendar({ event }: { event: CalendarEvent }) {
       <div className="flex gap-2">
         <button
           onClick={handlePrimary}
-          className="flex-1 flex items-center justify-center gap-1.5 text-sm font-semibold py-2.5 rounded-xl"
+          className="flex-1 min-w-0 flex items-center justify-center gap-1.5 text-[13px] sm:text-sm leading-tight font-semibold py-2.5 px-2 rounded-xl text-center"
           style={{ background: "var(--accent-hex)", color: "var(--accent-foreground)" }}
         >
-          {icon}
-          Zum Kalender hinzufügen
+          <span className="flex-shrink-0">{icon}</span>
+          <span className="min-w-0">Zum Kalender hinzufügen</span>
         </button>
         <button
           onClick={() => setOpen((o) => !o)}
           aria-label="Weitere Kalender-Optionen"
-          className="px-3 rounded-xl text-sm font-semibold"
+          className="w-11 flex-shrink-0 rounded-xl text-sm font-semibold"
           style={{ background: "rgba(var(--accent), 0.1)", color: "var(--accent-text)" }}
         >
           ⋯

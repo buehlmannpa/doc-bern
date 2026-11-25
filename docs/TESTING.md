@@ -10,11 +10,15 @@ pass» → `Tests`).
 - **Mitglieder-Seiten** (Desktop und Smartphone): Startseite, Events, News, Vorteile, Partner, Einstellungen laden
   ohne Fehler und ohne seitliches Scrollen. Events und News: Inhalt wird erst beim Aufklappen geladen,
   Bausteine (Text, Tabelle, Hinweis, Button, Galerie mit Grossansicht), Entwürfe sind nicht sichtbar und
-  nicht abrufbar, altes Format (Text + Links), gleiche Kachelhöhen (Desktop), ungültige IDs.
+  nicht abrufbar, altes Format (Text + Links), ungültige IDs.
 - **Admin** (Desktop): Schutz der Admin-Seiten und -Schnittstellen, echter Login, News und Events anlegen,
   bearbeiten, löschen, Umwandlung alter Beiträge, Prüfung unsicherer Links und ungültiger Bausteine,
   Bild-Aufräumen beim Abbrechen und Speichern. Partner, Rabattaktionen, Vorstand (anlegen, öffentlich sehen,
   löschen), Benutzerverwaltung (neuer Admin, Rollen, keine Selbstlöschung) und Wartungsmodus.
+- **Events-Zeitstrahl** (Desktop und Smartphone): aktueller Monat zuoberst, kommende Monate aufsteigend, leere Monate fehlen,
+  automatische Zuordnung nach Datum, Events untereinander, mehrtägige Events (Bereich, ganztägiger Kalendereintrag),
+  laufendes Event aus dem Vormonat, vergangene Jahre eingeklappt und erst beim Aufklappen geladen, Rechenlogik
+  (Monatswechsel in Schweizer Zeit, Jahreswechsel, Schaltjahr).
 - **Funktionen** (Desktop und Smartphone): Kalender-Export (.ics-Inhalt, Google-Link), Hell/Dunkel/Automatisch mit
   Merken nach dem Neuladen, Kontrastwerte in beiden Modi, Startseite mit Event, News und Vorstand.
 

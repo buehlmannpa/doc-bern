@@ -95,6 +95,22 @@ body {
   box-shadow: var(--glass-strong-shadow);
 }
 
+/* Bearbeiten-Fenster im Admin: deckend, damit nichts durchscheint und der Text gut lesbar bleibt */
+.modal-panel {
+  background: var(--bg-primary);
+}
+
+/* Knopfleiste unten im Fenster: bleibt beim Scrollen sichtbar, mit deckendem Hintergrund */
+.modal-actions {
+  position: sticky;
+  bottom: -1.25rem;
+  margin: 1.25rem -1.25rem -1.25rem;
+  padding: 0.75rem 1.25rem 1.25rem;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--hairline);
+  z-index: 5;
+}
+
 .glass-card {
   background: var(--glass-card-bg);
   backdrop-filter: blur(30px) saturate(150%);
@@ -107,6 +123,11 @@ body {
 
 .glass-card:active {
   transform: scale(0.98);
+}
+
+/* Container-Karten (z. B. ein aufgeklapptes Jahr mit Events darin): kein Druck-Effekt auf der ganzen Karte */
+.glass-card.no-press:active {
+  transform: none;
 }
 
 .accent-gradient {

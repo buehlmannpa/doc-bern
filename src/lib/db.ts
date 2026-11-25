@@ -134,6 +134,7 @@ async function ensureSchema() {
   await sql`ALTER TABLE news ADD COLUMN IF NOT EXISTS updated_by TEXT;`;
   await sql`ALTER TABLE news ADD COLUMN IF NOT EXISTS blocks JSONB;`;
   await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS blocks JSONB;`;
+  await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS end_date DATE;`;
 
   // Einmaliges Seeding, falls die Tabellen leer sind
   const ev = await sql`SELECT COUNT(*)::int AS c FROM events;`;
@@ -218,12 +219,20 @@ function genId(prefix: string) {
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+// Kalendertag aus einer Datenbank-Zeile ("YYYY-MM-DD" als Text oder Date); leer = null
+function dateOnly(v: any): string | null {
+  if (!v) return null;
+  if (typeof v === "string") return v.slice(0, 10);
+  return (v instanceof Date ? v : new Date(v)).toISOString().slice(0, 10);
+}
+
 function rowToEvent(r: any): EventItem {
   const d = r.date instanceof Date ? r.date : new Date(r.date);
   return {
     id: r.id,
     title: r.title,
     date: d.toISOString().slice(0, 10),
+    endDate: dateOnly(r.end_date),
     time: r.time || "",
     location: r.location || "",
     description: r.description || "",
@@ -244,6 +253,7 @@ function rowToEventListItem(r: any): EventListItem {
     id: r.id,
     title: r.title,
     date: d.toISOString().slice(0, 10),
+    endDate: dateOnly(r.end_date),
     time: r.time || "",
     location: r.location || "",
     imageUrl: r.image_url,
@@ -301,20 +311,142 @@ export async function getEvents(): Promise<EventItem[]> {
   return rows.map(rowToEvent);
 }
 
+const lastDayOfSeed = (e: EventItem) => (e.endDate && e.endDate > e.date ? e.endDate : e.date);
+
+// Admin-Liste: alle Entwürfe sowie alle Events des aktuellen Jahres und später (ab `yearStart`, "YYYY-01-01").
+// Frühere Jahre werden erst beim Aufklappen geladen (getAdminEventsOfYear).
+export async function getAdminEvents(yearStart: string): Promise<EventItem[]> {
+  if (!isDbConfigured()) return seedEvents.filter((e) => e.status === "draft" || lastDayOfSeed(e) >= yearStart);
+  const { rows } = await readQuery(() => sql`
+    SELECT * FROM events
+    WHERE status = 'draft' OR COALESCE(end_date, date) >= ${yearStart}::date
+    ORDER BY date ASC, time ASC;
+  `);
+  return rows.map(rowToEvent);
+}
+
+// Frühere Jahre (vor `yearStart`): nur Jahr und Anzahl der Events, ohne Entwürfe (die stehen in der Hauptliste).
+export async function getAdminPastYears(yearStart: string): Promise<{ year: number; count: number }[]> {
+  if (!isDbConfigured()) {
+    const counts = new Map<number, number>();
+    for (const e of seedEvents) {
+      if (e.status !== "draft" && lastDayOfSeed(e) < yearStart) {
+        const y = Number(e.date.slice(0, 4));
+        counts.set(y, (counts.get(y) ?? 0) + 1);
+      }
+    }
+    return [...counts].map(([year, count]) => ({ year, count })).sort((a, b) => b.year - a.year);
+  }
+  const { rows } = await readQuery(() => sql`
+    SELECT EXTRACT(YEAR FROM date)::int AS year, COUNT(*)::int AS count
+    FROM events
+    WHERE status <> 'draft' AND COALESCE(end_date, date) < ${yearStart}::date
+    GROUP BY 1
+    ORDER BY 1 DESC;
+  `);
+  return rows.map((r: any) => ({ year: Number(r.year), count: Number(r.count) }));
+}
+
+// Events eines früheren Jahres (nach Starttag), wird beim Aufklappen des Jahres geladen.
+export async function getAdminEventsOfYear(year: number, yearStart: string): Promise<EventItem[]> {
+  if (!isDbConfigured()) {
+    return seedEvents.filter((e) => e.status !== "draft" && Number(e.date.slice(0, 4)) === year && lastDayOfSeed(e) < yearStart);
+  }
+  const { rows } = await readQuery(() => sql`
+    SELECT * FROM events
+    WHERE status <> 'draft' AND EXTRACT(YEAR FROM date)::int = ${year}
+      AND COALESCE(end_date, date) < ${yearStart}::date
+    ORDER BY date ASC, time ASC;
+  `);
+  return rows.map(rowToEvent);
+}
+
 // Öffentlich sichtbare Events (veröffentlicht und Publikationszeitpunkt erreicht). Gecacht.
 // Liefert nur die leichten Felder; der Inhalt kommt über getPublishedEventDetail.
 export const getPublishedEvents = unstable_cache(
   async (): Promise<EventListItem[]> => {
     if (!isDbConfigured()) return seedEvents.map(toEventListItem);
     const { rows } = await readQuery(() => sql`
-      SELECT id, title, date, time, location, image_url, badge, status, publish_at, updated_by
+      SELECT id, title, to_char(date, 'YYYY-MM-DD') AS date, to_char(end_date, 'YYYY-MM-DD') AS end_date,
+             time, location, image_url, badge, status, publish_at, updated_by
       FROM events
       WHERE status = 'published' AND publish_at <= now()
       ORDER BY date ASC, time ASC;
     `);
     return rows.map(rowToEventListItem);
   },
-  ["published-events-v2"],
+  ["published-events-v3"],
+  { revalidate: PUBLIC_REVALIDATE, tags: [TAGS.events] }
+);
+
+// Zeitstrahl: Events, die im aktuellen Monat oder später noch stattfinden (ab `monthStart`, "YYYY-MM-01").
+// Alles davor ("vergangen") wird erst auf Klick pro Jahr nachgeladen.
+export const getUpcomingEvents = unstable_cache(
+  async (monthStart: string): Promise<EventListItem[]> => {
+    if (!isDbConfigured()) {
+      return seedEvents.filter((e) => (e.endDate && e.endDate > e.date ? e.endDate : e.date) >= monthStart).map(toEventListItem);
+    }
+    const { rows } = await readQuery(() => sql`
+      SELECT id, title, to_char(date, 'YYYY-MM-DD') AS date, to_char(end_date, 'YYYY-MM-DD') AS end_date,
+             time, location, image_url, badge, status, publish_at, updated_by
+      FROM events
+      WHERE status = 'published' AND publish_at <= now()
+        AND COALESCE(end_date, date) >= ${monthStart}::date
+      ORDER BY date ASC, time ASC;
+    `);
+    return rows.map(rowToEventListItem);
+  },
+  ["upcoming-events-v1"],
+  { revalidate: PUBLIC_REVALIDATE, tags: [TAGS.events] }
+);
+
+// Vergangene Events (vor `monthStart`): nur Jahr und Anzahl, damit die Seite leicht bleibt.
+export const getPastYearSummary = unstable_cache(
+  async (monthStart: string): Promise<{ year: number; count: number }[]> => {
+    if (!isDbConfigured()) {
+      const counts = new Map<number, number>();
+      for (const e of seedEvents) {
+        if ((e.endDate && e.endDate > e.date ? e.endDate : e.date) < monthStart) {
+          const y = Number(e.date.slice(0, 4));
+          counts.set(y, (counts.get(y) ?? 0) + 1);
+        }
+      }
+      return [...counts].map(([year, count]) => ({ year, count })).sort((a, b) => b.year - a.year);
+    }
+    const { rows } = await readQuery(() => sql`
+      SELECT EXTRACT(YEAR FROM date)::int AS year, COUNT(*)::int AS count
+      FROM events
+      WHERE status = 'published' AND publish_at <= now()
+        AND COALESCE(end_date, date) < ${monthStart}::date
+      GROUP BY 1
+      ORDER BY 1 DESC;
+    `);
+    return rows.map((r: any) => ({ year: Number(r.year), count: Number(r.count) }));
+  },
+  ["past-event-years-v1"],
+  { revalidate: PUBLIC_REVALIDATE, tags: [TAGS.events] }
+);
+
+// Vergangene Events eines Jahres (nach Starttag), werden beim Aufklappen des Jahres geladen.
+export const getPastEvents = unstable_cache(
+  async (year: number, monthStart: string): Promise<EventListItem[]> => {
+    if (!isDbConfigured()) {
+      return seedEvents
+        .filter((e) => Number(e.date.slice(0, 4)) === year && (e.endDate && e.endDate > e.date ? e.endDate : e.date) < monthStart)
+        .map(toEventListItem);
+    }
+    const { rows } = await readQuery(() => sql`
+      SELECT id, title, to_char(date, 'YYYY-MM-DD') AS date, to_char(end_date, 'YYYY-MM-DD') AS end_date,
+             time, location, image_url, badge, status, publish_at, updated_by
+      FROM events
+      WHERE status = 'published' AND publish_at <= now()
+        AND EXTRACT(YEAR FROM date)::int = ${year}
+        AND COALESCE(end_date, date) < ${monthStart}::date
+      ORDER BY date ASC, time ASC;
+    `);
+    return rows.map(rowToEventListItem);
+  },
+  ["past-events-v1"],
   { revalidate: PUBLIC_REVALIDATE, tags: [TAGS.events] }
 );
 
@@ -352,8 +484,8 @@ export async function createEvent(input: Omit<EventItem, "id">): Promise<EventIt
   await ensureSchema();
   const id = genId("evt");
   const res = await sql`
-    INSERT INTO events (id, title, date, time, location, description, image_url, links, badge, status, publish_at, updated_by, blocks)
-    VALUES (${id}, ${input.title}, ${input.date}, ${input.time}, ${input.location},
+    INSERT INTO events (id, title, date, end_date, time, location, description, image_url, links, badge, status, publish_at, updated_by, blocks)
+    VALUES (${id}, ${input.title}, ${input.date}, ${input.endDate || null}, ${input.time}, ${input.location},
             ${input.description}, ${input.imageUrl ?? null},
             ${JSON.stringify(input.links ?? [])}::jsonb, ${input.badge ?? null},
             ${input.status ?? "published"}, ${input.publishAt ?? new Date().toISOString()}, ${input.updatedBy ?? null},
@@ -370,6 +502,7 @@ export async function updateEvent(id: string, input: Omit<EventItem, "id">): Pro
     UPDATE events SET
       title = ${input.title},
       date = ${input.date},
+      end_date = ${input.endDate || null},
       time = ${input.time ?? ""},
       location = ${input.location ?? ""},
       description = ${input.description ?? ""},
