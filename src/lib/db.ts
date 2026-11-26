@@ -687,6 +687,74 @@ export async function getStoredImageUrls(kind: "news" | "events" | "board", id: 
   return r.rows.flatMap((x) => (x.image_url ? [x.image_url as string] : []));
 }
 
+// Wie ein Bild verwendet wird: bestimmt, auf welche Grösse es verkleinert wird
+export type ImageRole = "standard" | "galerie" | "vorschau";
+const ROLE_RANK: Record<ImageRole, number> = { vorschau: 0, standard: 1, galerie: 2 };
+
+// Alle Bilder, die in News, Events (Titelbild, Bild- und Galerie-Bausteine) und beim Vorstand verwendet werden.
+// Ein Bild, das mehrfach vorkommt, erscheint einmal, mit der grosszügigsten Verwendung.
+export async function getImageReferences(): Promise<{ url: string; role: ImageRole }[]> {
+  if (!isDbConfigured()) return [];
+  await ensureSchema();
+  const found = new Map<string, ImageRole>();
+  const add = (url: unknown, role: ImageRole) => {
+    if (typeof url !== "string" || !url.trim()) return;
+    const u = url.trim();
+    const cur = found.get(u);
+    if (!cur || ROLE_RANK[role] > ROLE_RANK[cur]) found.set(u, role);
+  };
+  const fromBlocks = (blocks: unknown) => {
+    if (!Array.isArray(blocks)) return;
+    for (const b of blocks as Record<string, any>[]) {
+      if (!b || typeof b !== "object") continue;
+      if (b.type === "image") add(b.url, "standard");
+      if (b.type === "gallery" && Array.isArray(b.images)) {
+        for (const im of b.images as Record<string, any>[]) {
+          add(im?.url, "galerie");
+          add(im?.thumbUrl, "vorschau");
+        }
+      }
+    }
+  };
+  for (const table of ["news", "events"] as const) {
+    const { rows } = table === "news"
+      ? await sql`SELECT image_url, blocks FROM news;`
+      : await sql`SELECT image_url, blocks FROM events;`;
+    for (const r of rows) {
+      add(r.image_url, "standard");
+      fromBlocks(r.blocks);
+    }
+  }
+  const board = await sql`SELECT image_url FROM board_members;`;
+  for (const r of board.rows) add(r.image_url, "standard");
+  return [...found].map(([url, role]) => ({ url, role }));
+}
+
+// Ersetzt eine Bildadresse überall (Titelbilder, Bild- und Galerie-Bausteine, Vorstand). Gibt die Anzahl geänderter Zeilen zurück.
+export async function replaceImageUrl(oldUrl: string, newUrl: string): Promise<number> {
+  await ensureSchema();
+  const oldQ = JSON.stringify(oldUrl); // Adresse so, wie sie im JSON steht (mit Anführungszeichen)
+  const newQ = JSON.stringify(newUrl);
+  const like = `%${oldQ.replace(/[\\%_]/g, "\\$&")}%`;
+  let changed = 0;
+  const n1 = await sql`UPDATE news SET image_url = ${newUrl} WHERE image_url = ${oldUrl};`;
+  const n2 = await sql`
+    UPDATE news SET blocks = replace(blocks::text, ${oldQ}, ${newQ})::jsonb
+    WHERE blocks IS NOT NULL AND blocks::text LIKE ${like};`;
+  const e1 = await sql`UPDATE events SET image_url = ${newUrl} WHERE image_url = ${oldUrl};`;
+  const e2 = await sql`
+    UPDATE events SET blocks = replace(blocks::text, ${oldQ}, ${newQ})::jsonb
+    WHERE blocks IS NOT NULL AND blocks::text LIKE ${like};`;
+  const b1 = await sql`UPDATE board_members SET image_url = ${newUrl} WHERE image_url = ${oldUrl};`;
+  changed = (n1.rowCount ?? 0) + (n2.rowCount ?? 0) + (e1.rowCount ?? 0) + (e2.rowCount ?? 0) + (b1.rowCount ?? 0);
+  if (changed > 0) {
+    revalidateTag(TAGS.news);
+    revalidateTag(TAGS.events);
+    revalidateTag(TAGS.board);
+  }
+  return changed;
+}
+
 // Prüft, ob eine Bildadresse noch irgendwo verwendet wird (News, Events, Vorstand)
 export async function isImageStillUsed(url: string): Promise<boolean> {
   await ensureSchema();

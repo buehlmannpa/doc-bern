@@ -38,6 +38,8 @@ export default defineConfig({
       SESSION_SECRET: "test-secret",
       // Bewusst kein Blob-Token: Die Tests sprechen nie mit dem echten Bildspeicher (Uploads sind simuliert)
       BLOB_READ_WRITE_TOKEN: "",
+      // Test-Bildspeicher im Arbeitsspeicher für die Tests der Bild-Verkleinerung (nur hier gesetzt)
+      E2E_FAKE_BLOB: "1",
     },
   },
 });
