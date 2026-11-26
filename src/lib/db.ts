@@ -687,6 +687,25 @@ export async function getStoredImageUrls(kind: "news" | "events" | "board", id: 
   return r.rows.flatMap((x) => (x.image_url ? [x.image_url as string] : []));
 }
 
+// Stand eines Eintrags vor einer Änderung oder vor dem Löschen (für das Protokoll: Titel und geänderte Felder).
+export async function getAuditSnapshot(entity: "event" | "news" | "action" | "partner" | "board", id: string): Promise<Record<string, unknown> | null> {
+  if (!isDbConfigured()) return null;
+  await ensureSchema();
+  switch (entity) {
+    case "event": { const r = await sql`SELECT * FROM events WHERE id = ${id};`; return r.rows[0] ? (rowToEvent(r.rows[0]) as unknown as Record<string, unknown>) : null; }
+    case "news": { const r = await sql`SELECT * FROM news WHERE id = ${id};`; return r.rows[0] ? (rowToNews(r.rows[0]) as unknown as Record<string, unknown>) : null; }
+    case "action": { const r = await sql`SELECT * FROM actions WHERE id = ${id};`; return r.rows[0] ? (rowToAction(r.rows[0]) as unknown as Record<string, unknown>) : null; }
+    case "partner": { const r = await sql`SELECT * FROM partners WHERE id = ${id};`; return r.rows[0] ? (rowToPartner(r.rows[0]) as unknown as Record<string, unknown>) : null; }
+    case "board": { const r = await sql`SELECT * FROM board_members WHERE id = ${id};`; return r.rows[0] ? (rowToBoard(r.rows[0]) as unknown as Record<string, unknown>) : null; }
+  }
+}
+
+export async function getAdminUserSnapshot(username: string): Promise<AdminUser | null> {
+  if (!isDbConfigured()) return null;
+  const { rows } = await readQuery(() => sql`SELECT username, name, role FROM admin_users WHERE username = ${username};`);
+  return rows[0] ? { username: rows[0].username, name: rows[0].name, role: rows[0].role as AdminRole } : null;
+}
+
 // Wie ein Bild verwendet wird: bestimmt, auf welche Grösse es verkleinert wird
 export type ImageRole = "standard" | "galerie" | "vorschau";
 const ROLE_RANK: Record<ImageRole, number> = { vorschau: 0, standard: 1, galerie: 2 };

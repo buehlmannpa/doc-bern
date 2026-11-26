@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getMaintenance, setMaintenance, isDbConfigured } from "@/lib/db";
+import { logAudit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ export async function PUT(request: Request) {
   try {
     const body = await request.json();
     await setMaintenance(Boolean(body.maintenance));
+    await logAudit(request, { action: "setting", entity: "settings", label: "Wartungsmodus", detail: body.maintenance ? "eingeschaltet" : "ausgeschaltet" });
     return NextResponse.json({ maintenance: Boolean(body.maintenance) });
   } catch (e) {
     return NextResponse.json({ error: `Speichern fehlgeschlagen: ${(e as Error).message}` }, { status: 500 });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSuperadmin } from "@/lib/session";
+import { logAudit } from "@/lib/audit";
 import { optimizeImage, scanImages } from "@/lib/image-optimizer";
 
 export const dynamic = "force-dynamic";
@@ -23,5 +24,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Bild-Adresse fehlt." }, { status: 400 });
   }
   const result = await optimizeImage(body.url, body.dryRun === true);
+  if (result.status === "verkleinert") {
+    const kb = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1).replace(".", ",")} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+    const name = decodeURIComponent((body.url.split("?name=")[1] ?? body.url.split("/").pop() ?? "").slice(0, 60));
+    await logAudit(request, { action: "optimize", entity: "image", label: name, detail: `${kb(result.before)} → ${kb(result.after)}` });
+  }
   return NextResponse.json(result, { status: result.status === "fehler" ? 422 : 200 });
 }
