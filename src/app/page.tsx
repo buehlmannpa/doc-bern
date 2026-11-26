@@ -4,6 +4,7 @@ import { getPublishedEvents, getPublishedNews, getBoard } from "@/lib/db";
 import { seedEvents, seedNews } from "@/lib/seed";
 import { toNewsListItem, toEventListItem } from "@/lib/blocks";
 import { lastDay, zurichToday } from "@/lib/event-dates";
+import { getHostettlerHours, isClosureToday } from "@/lib/hostettler-hours";
 import type { EventListItem, NewsListItem } from "@/lib/types";
 import { board, boardIntro, hostettlerInfo, membershipUrl } from "@/data/content";
 import BoardMemberCard from "@/components/BoardMemberCard";
@@ -55,8 +56,12 @@ export default async function Home() {
 
   // Heutiger Wochentag in Schweizer Zeit (der Server läuft in UTC).
   const todayName = new Date().toLocaleDateString("de-CH", { weekday: "long", timeZone: "Europe/Zurich" });
-  const todayShop = hostettlerInfo.hoursShop.find((h) => h.day === todayName);
-  const todayWorkshop = hostettlerInfo.hoursWorkshop.find((h) => h.day === todayName);
+  // Aktuelle Zeiten von hostettler-moto.ch (Jahreszeit, Feiertage, Betriebsferien)
+  const hours = await getHostettlerHours();
+  const closedToday = isClosureToday(hours.closure, today);
+  const asToday = (h: { day: string; time: string } | undefined) => (h && closedToday ? { ...h, time: "Betriebsferien" } : h);
+  const todayShop = asToday(hours.shop.find((h) => h.day === todayName));
+  const todayWorkshop = asToday(hours.workshop.find((h) => h.day === todayName));
 
   return (
     <div className="space-y-6">
@@ -169,12 +174,12 @@ export default async function Home() {
           <div className="hidden lg:block mt-3 mb-3 rounded-xl p-2.5 space-y-1 text-xs" style={{ background: "var(--surface-subtle)" }} title={`Öffnungszeiten heute (${todayName})`}>
             {[["Shop", todayShop], ["Werkstatt", todayWorkshop]].map(([label, h]) => {
               const hours = h as { day: string; time: string } | undefined;
-              const closed = !hours || hours.time === "Geschlossen";
+              const closed = !hours || hours.time === "Geschlossen" || hours.time === "Betriebsferien";
               return (
                 <div key={label as string} className="flex justify-between gap-3">
                   <span style={{ color: "var(--text-secondary)" }}>{label as string} heute</span>
                   <span className="text-right font-semibold" style={{ color: closed ? "var(--text-secondary)" : "var(--text-primary)" }}>
-                    {closed ? "Geschlossen" : hours.time}
+                    {closed ? (hours?.time ?? "Geschlossen") : hours.time}
                   </span>
                 </div>
               );
