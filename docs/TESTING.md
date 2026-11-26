@@ -25,6 +25,8 @@ pass» → `Tests`).
 - **Protokoll** (Admin → Protokoll, nur Super-Admins): Zugriffsschutz, Anmeldungen (Gerät, Fehlversuche nur einmal, Abmeldung),
   Erstellen/Ändern/Löschen in allen Bereichen mit Person und Titel, geänderte Felder statt Inhalte, nie Passwörter, Filter
   (Person, Bereich, Aktion, Text, Zeitraum, Nur Wichtiges), Blättern, Logrotate nach 3 Monaten, Oberfläche.
+- **Öffnungszeiten Vertragshändler** (Desktop und Smartphone): Zeiten werden von der Händler-Seite gelesen (hier eine Testseite, `E2E_FAKE_HOURS=1`), "heute" in Schweizer Zeit,
+  Sommer-/Winterzeiten ohne App-Änderung, Ersatzzeiten mit Hinweis bei Ausfall oder veränderter Seite, Betriebsferien (aktuell, kommend, vorbei).
 - **Funktionen** (Desktop und Smartphone): Kalender-Export (.ics-Inhalt, Google-Link), Hell/Dunkel/Automatisch mit
   Merken nach dem Neuladen, Kontrastwerte in beiden Modi, Startseite mit Event, News und Vorstand.
 
