@@ -13,6 +13,8 @@ import { blocksToPlainText, sanitizeBlocks } from "@/lib/blocks";
 import { deleteUnusedBlobs, deleteReplacedBlobs } from "@/lib/blob-cleanup";
 import { getStoredImageUrls } from "@/lib/db";
 import { collectImageUrls } from "@/lib/blocks";
+import { logAudit, auditDiff } from "@/lib/audit";
+import { getAuditSnapshot } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +71,7 @@ export async function POST(request: Request) {
       status: body.status === "draft" ? "draft" : "published",
       updatedBy: await currentUsername(),
     });
+    await logAudit(request, { action: "create", entity: "news", id: item.id, label: item.title });
     return NextResponse.json({ item });
   } catch (e) {
     return NextResponse.json(
@@ -92,6 +95,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: (e as Error).message }, { status: 400 });
     }
     const content = blocks && blocks.length > 0 ? blocksToPlainText(blocks) : body.content || "";
+    const snap = await getAuditSnapshot("news", body.id);
     const before = await getStoredImageUrls("news", body.id);
     const item = await updateNews(body.id, {
       title: body.title,
@@ -107,6 +111,7 @@ export async function PUT(request: Request) {
       updatedBy: await currentUsername(),
     });
     await deleteReplacedBlobs(before, collectImageUrls(item.imageUrl, item.blocks));
+    await logAudit(request, { action: "update", entity: "news", id: item.id, label: item.title, detail: auditDiff("news", snap, item as unknown as Record<string, unknown>) });
     return NextResponse.json({ item });
   } catch (e) {
     return NextResponse.json(
@@ -122,6 +127,7 @@ export async function PATCH(request: Request) {
     const body = await request.json();
     const ids: string[] = Array.isArray(body.ids) ? body.ids : [];
     await reorderNews(ids);
+    await logAudit(request, { action: "reorder", entity: "news", detail: `${ids.length} Beiträge` });
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json(
@@ -138,8 +144,10 @@ export async function DELETE(request: Request) {
     if (!id) {
       return NextResponse.json({ error: "Keine id angegeben." }, { status: 400 });
     }
+    const snap = await getAuditSnapshot("news", id);
     const urls = await deleteNews(id);
     const cleanup = await deleteUnusedBlobs(urls);
+    if (snap) await logAudit(request, { action: "delete", entity: "news", id, label: String(snap.title) });
     return NextResponse.json({ ok: true, deletedImages: cleanup.deleted, imageCleanupFailed: cleanup.failed });
   } catch (e) {
     return NextResponse.json(

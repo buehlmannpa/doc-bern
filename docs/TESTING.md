@@ -10,11 +10,23 @@ pass» → `Tests`).
 - **Mitglieder-Seiten** (Desktop und Smartphone): Startseite, Events, News, Vorteile, Partner, Einstellungen laden
   ohne Fehler und ohne seitliches Scrollen. Events und News: Inhalt wird erst beim Aufklappen geladen,
   Bausteine (Text, Tabelle, Hinweis, Button, Galerie mit Grossansicht), Entwürfe sind nicht sichtbar und
-  nicht abrufbar, altes Format (Text + Links), gleiche Kachelhöhen (Desktop), ungültige IDs.
+  nicht abrufbar, altes Format (Text + Links), ungültige IDs.
 - **Admin** (Desktop): Schutz der Admin-Seiten und -Schnittstellen, echter Login, News und Events anlegen,
   bearbeiten, löschen, Umwandlung alter Beiträge, Prüfung unsicherer Links und ungültiger Bausteine,
   Bild-Aufräumen beim Abbrechen und Speichern. Partner, Rabattaktionen, Vorstand (anlegen, öffentlich sehen,
   löschen), Benutzerverwaltung (neuer Admin, Rollen, keine Selbstlöschung) und Wartungsmodus.
+- **Events-Zeitstrahl** (Desktop und Smartphone): aktueller Monat zuoberst, kommende Monate aufsteigend, leere Monate fehlen,
+  automatische Zuordnung nach Datum, Events untereinander, mehrtägige Events (Bereich, ganztägiger Kalendereintrag),
+  laufendes Event aus dem Vormonat, vergangene Jahre eingeklappt und erst beim Aufklappen geladen, Rechenlogik
+  (Monatswechsel in Schweizer Zeit, Jahreswechsel, Schaltjahr).
+- **Bilder verkleinern** (Admin → Bilder, nur Super-Admins): Prüfung, Vorschau, Verkleinern mit Bestätigung, Adresse überall
+  ersetzt, Original erst danach gelöscht, Fehlerfälle lassen alles unverändert. Der Bildspeicher ist dabei ein Test-Speicher im
+  Arbeitsspeicher (`E2E_FAKE_BLOB=1`, nur in der Test-Konfiguration gesetzt).
+- **Protokoll** (Admin → Protokoll, nur Super-Admins): Zugriffsschutz, Anmeldungen (Gerät, Fehlversuche nur einmal, Abmeldung),
+  Erstellen/Ändern/Löschen in allen Bereichen mit Person und Titel, geänderte Felder statt Inhalte, nie Passwörter, Filter
+  (Person, Bereich, Aktion, Text, Zeitraum, Nur Wichtiges), Blättern, Logrotate nach 3 Monaten, Oberfläche.
+- **Öffnungszeiten Vertragshändler** (Desktop und Smartphone): Zeiten werden von der Händler-Seite gelesen (hier eine Testseite, `E2E_FAKE_HOURS=1`), "heute" in Schweizer Zeit,
+  Sommer-/Winterzeiten ohne App-Änderung, Ersatzzeiten mit Hinweis bei Ausfall oder veränderter Seite, Betriebsferien (aktuell, kommend, vorbei).
 - **Funktionen** (Desktop und Smartphone): Kalender-Export (.ics-Inhalt, Google-Link), Hell/Dunkel/Automatisch mit
   Merken nach dem Neuladen, Kontrastwerte in beiden Modi, Startseite mit Event, News und Vorstand.
 

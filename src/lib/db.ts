@@ -134,6 +134,7 @@ async function ensureSchema() {
   await sql`ALTER TABLE news ADD COLUMN IF NOT EXISTS updated_by TEXT;`;
   await sql`ALTER TABLE news ADD COLUMN IF NOT EXISTS blocks JSONB;`;
   await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS blocks JSONB;`;
+  await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS end_date DATE;`;
 
   // Einmaliges Seeding, falls die Tabellen leer sind
   const ev = await sql`SELECT COUNT(*)::int AS c FROM events;`;
@@ -218,12 +219,20 @@ function genId(prefix: string) {
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+// Kalendertag aus einer Datenbank-Zeile ("YYYY-MM-DD" als Text oder Date); leer = null
+function dateOnly(v: any): string | null {
+  if (!v) return null;
+  if (typeof v === "string") return v.slice(0, 10);
+  return (v instanceof Date ? v : new Date(v)).toISOString().slice(0, 10);
+}
+
 function rowToEvent(r: any): EventItem {
   const d = r.date instanceof Date ? r.date : new Date(r.date);
   return {
     id: r.id,
     title: r.title,
     date: d.toISOString().slice(0, 10),
+    endDate: dateOnly(r.end_date),
     time: r.time || "",
     location: r.location || "",
     description: r.description || "",
@@ -244,6 +253,7 @@ function rowToEventListItem(r: any): EventListItem {
     id: r.id,
     title: r.title,
     date: d.toISOString().slice(0, 10),
+    endDate: dateOnly(r.end_date),
     time: r.time || "",
     location: r.location || "",
     imageUrl: r.image_url,
@@ -301,20 +311,142 @@ export async function getEvents(): Promise<EventItem[]> {
   return rows.map(rowToEvent);
 }
 
+const lastDayOfSeed = (e: EventItem) => (e.endDate && e.endDate > e.date ? e.endDate : e.date);
+
+// Admin-Liste: alle Entwürfe sowie alle Events des aktuellen Jahres und später (ab `yearStart`, "YYYY-01-01").
+// Frühere Jahre werden erst beim Aufklappen geladen (getAdminEventsOfYear).
+export async function getAdminEvents(yearStart: string): Promise<EventItem[]> {
+  if (!isDbConfigured()) return seedEvents.filter((e) => e.status === "draft" || lastDayOfSeed(e) >= yearStart);
+  const { rows } = await readQuery(() => sql`
+    SELECT * FROM events
+    WHERE status = 'draft' OR COALESCE(end_date, date) >= ${yearStart}::date
+    ORDER BY date ASC, time ASC;
+  `);
+  return rows.map(rowToEvent);
+}
+
+// Frühere Jahre (vor `yearStart`): nur Jahr und Anzahl der Events, ohne Entwürfe (die stehen in der Hauptliste).
+export async function getAdminPastYears(yearStart: string): Promise<{ year: number; count: number }[]> {
+  if (!isDbConfigured()) {
+    const counts = new Map<number, number>();
+    for (const e of seedEvents) {
+      if (e.status !== "draft" && lastDayOfSeed(e) < yearStart) {
+        const y = Number(e.date.slice(0, 4));
+        counts.set(y, (counts.get(y) ?? 0) + 1);
+      }
+    }
+    return [...counts].map(([year, count]) => ({ year, count })).sort((a, b) => b.year - a.year);
+  }
+  const { rows } = await readQuery(() => sql`
+    SELECT EXTRACT(YEAR FROM date)::int AS year, COUNT(*)::int AS count
+    FROM events
+    WHERE status <> 'draft' AND COALESCE(end_date, date) < ${yearStart}::date
+    GROUP BY 1
+    ORDER BY 1 DESC;
+  `);
+  return rows.map((r: any) => ({ year: Number(r.year), count: Number(r.count) }));
+}
+
+// Events eines früheren Jahres (nach Starttag), wird beim Aufklappen des Jahres geladen.
+export async function getAdminEventsOfYear(year: number, yearStart: string): Promise<EventItem[]> {
+  if (!isDbConfigured()) {
+    return seedEvents.filter((e) => e.status !== "draft" && Number(e.date.slice(0, 4)) === year && lastDayOfSeed(e) < yearStart);
+  }
+  const { rows } = await readQuery(() => sql`
+    SELECT * FROM events
+    WHERE status <> 'draft' AND EXTRACT(YEAR FROM date)::int = ${year}
+      AND COALESCE(end_date, date) < ${yearStart}::date
+    ORDER BY date ASC, time ASC;
+  `);
+  return rows.map(rowToEvent);
+}
+
 // Öffentlich sichtbare Events (veröffentlicht und Publikationszeitpunkt erreicht). Gecacht.
 // Liefert nur die leichten Felder; der Inhalt kommt über getPublishedEventDetail.
 export const getPublishedEvents = unstable_cache(
   async (): Promise<EventListItem[]> => {
     if (!isDbConfigured()) return seedEvents.map(toEventListItem);
     const { rows } = await readQuery(() => sql`
-      SELECT id, title, date, time, location, image_url, badge, status, publish_at, updated_by
+      SELECT id, title, to_char(date, 'YYYY-MM-DD') AS date, to_char(end_date, 'YYYY-MM-DD') AS end_date,
+             time, location, image_url, badge, status, publish_at, updated_by
       FROM events
       WHERE status = 'published' AND publish_at <= now()
       ORDER BY date ASC, time ASC;
     `);
     return rows.map(rowToEventListItem);
   },
-  ["published-events-v2"],
+  ["published-events-v3"],
+  { revalidate: PUBLIC_REVALIDATE, tags: [TAGS.events] }
+);
+
+// Zeitstrahl: Events, die im aktuellen Monat oder später noch stattfinden (ab `monthStart`, "YYYY-MM-01").
+// Alles davor ("vergangen") wird erst auf Klick pro Jahr nachgeladen.
+export const getUpcomingEvents = unstable_cache(
+  async (monthStart: string): Promise<EventListItem[]> => {
+    if (!isDbConfigured()) {
+      return seedEvents.filter((e) => (e.endDate && e.endDate > e.date ? e.endDate : e.date) >= monthStart).map(toEventListItem);
+    }
+    const { rows } = await readQuery(() => sql`
+      SELECT id, title, to_char(date, 'YYYY-MM-DD') AS date, to_char(end_date, 'YYYY-MM-DD') AS end_date,
+             time, location, image_url, badge, status, publish_at, updated_by
+      FROM events
+      WHERE status = 'published' AND publish_at <= now()
+        AND COALESCE(end_date, date) >= ${monthStart}::date
+      ORDER BY date ASC, time ASC;
+    `);
+    return rows.map(rowToEventListItem);
+  },
+  ["upcoming-events-v1"],
+  { revalidate: PUBLIC_REVALIDATE, tags: [TAGS.events] }
+);
+
+// Vergangene Events (vor `monthStart`): nur Jahr und Anzahl, damit die Seite leicht bleibt.
+export const getPastYearSummary = unstable_cache(
+  async (monthStart: string): Promise<{ year: number; count: number }[]> => {
+    if (!isDbConfigured()) {
+      const counts = new Map<number, number>();
+      for (const e of seedEvents) {
+        if ((e.endDate && e.endDate > e.date ? e.endDate : e.date) < monthStart) {
+          const y = Number(e.date.slice(0, 4));
+          counts.set(y, (counts.get(y) ?? 0) + 1);
+        }
+      }
+      return [...counts].map(([year, count]) => ({ year, count })).sort((a, b) => b.year - a.year);
+    }
+    const { rows } = await readQuery(() => sql`
+      SELECT EXTRACT(YEAR FROM date)::int AS year, COUNT(*)::int AS count
+      FROM events
+      WHERE status = 'published' AND publish_at <= now()
+        AND COALESCE(end_date, date) < ${monthStart}::date
+      GROUP BY 1
+      ORDER BY 1 DESC;
+    `);
+    return rows.map((r: any) => ({ year: Number(r.year), count: Number(r.count) }));
+  },
+  ["past-event-years-v1"],
+  { revalidate: PUBLIC_REVALIDATE, tags: [TAGS.events] }
+);
+
+// Vergangene Events eines Jahres (nach Starttag), werden beim Aufklappen des Jahres geladen.
+export const getPastEvents = unstable_cache(
+  async (year: number, monthStart: string): Promise<EventListItem[]> => {
+    if (!isDbConfigured()) {
+      return seedEvents
+        .filter((e) => Number(e.date.slice(0, 4)) === year && (e.endDate && e.endDate > e.date ? e.endDate : e.date) < monthStart)
+        .map(toEventListItem);
+    }
+    const { rows } = await readQuery(() => sql`
+      SELECT id, title, to_char(date, 'YYYY-MM-DD') AS date, to_char(end_date, 'YYYY-MM-DD') AS end_date,
+             time, location, image_url, badge, status, publish_at, updated_by
+      FROM events
+      WHERE status = 'published' AND publish_at <= now()
+        AND EXTRACT(YEAR FROM date)::int = ${year}
+        AND COALESCE(end_date, date) < ${monthStart}::date
+      ORDER BY date ASC, time ASC;
+    `);
+    return rows.map(rowToEventListItem);
+  },
+  ["past-events-v1"],
   { revalidate: PUBLIC_REVALIDATE, tags: [TAGS.events] }
 );
 
@@ -352,8 +484,8 @@ export async function createEvent(input: Omit<EventItem, "id">): Promise<EventIt
   await ensureSchema();
   const id = genId("evt");
   const res = await sql`
-    INSERT INTO events (id, title, date, time, location, description, image_url, links, badge, status, publish_at, updated_by, blocks)
-    VALUES (${id}, ${input.title}, ${input.date}, ${input.time}, ${input.location},
+    INSERT INTO events (id, title, date, end_date, time, location, description, image_url, links, badge, status, publish_at, updated_by, blocks)
+    VALUES (${id}, ${input.title}, ${input.date}, ${input.endDate || null}, ${input.time}, ${input.location},
             ${input.description}, ${input.imageUrl ?? null},
             ${JSON.stringify(input.links ?? [])}::jsonb, ${input.badge ?? null},
             ${input.status ?? "published"}, ${input.publishAt ?? new Date().toISOString()}, ${input.updatedBy ?? null},
@@ -370,6 +502,7 @@ export async function updateEvent(id: string, input: Omit<EventItem, "id">): Pro
     UPDATE events SET
       title = ${input.title},
       date = ${input.date},
+      end_date = ${input.endDate || null},
       time = ${input.time ?? ""},
       location = ${input.location ?? ""},
       description = ${input.description ?? ""},
@@ -552,6 +685,93 @@ export async function getStoredImageUrls(kind: "news" | "events" | "board", id: 
   }
   const r = await sql`SELECT image_url FROM board_members WHERE id = ${id};`;
   return r.rows.flatMap((x) => (x.image_url ? [x.image_url as string] : []));
+}
+
+// Stand eines Eintrags vor einer Änderung oder vor dem Löschen (für das Protokoll: Titel und geänderte Felder).
+export async function getAuditSnapshot(entity: "event" | "news" | "action" | "partner" | "board", id: string): Promise<Record<string, unknown> | null> {
+  if (!isDbConfigured()) return null;
+  await ensureSchema();
+  switch (entity) {
+    case "event": { const r = await sql`SELECT * FROM events WHERE id = ${id};`; return r.rows[0] ? (rowToEvent(r.rows[0]) as unknown as Record<string, unknown>) : null; }
+    case "news": { const r = await sql`SELECT * FROM news WHERE id = ${id};`; return r.rows[0] ? (rowToNews(r.rows[0]) as unknown as Record<string, unknown>) : null; }
+    case "action": { const r = await sql`SELECT * FROM actions WHERE id = ${id};`; return r.rows[0] ? (rowToAction(r.rows[0]) as unknown as Record<string, unknown>) : null; }
+    case "partner": { const r = await sql`SELECT * FROM partners WHERE id = ${id};`; return r.rows[0] ? (rowToPartner(r.rows[0]) as unknown as Record<string, unknown>) : null; }
+    case "board": { const r = await sql`SELECT * FROM board_members WHERE id = ${id};`; return r.rows[0] ? (rowToBoard(r.rows[0]) as unknown as Record<string, unknown>) : null; }
+  }
+}
+
+export async function getAdminUserSnapshot(username: string): Promise<AdminUser | null> {
+  if (!isDbConfigured()) return null;
+  const { rows } = await readQuery(() => sql`SELECT username, name, role FROM admin_users WHERE username = ${username};`);
+  return rows[0] ? { username: rows[0].username, name: rows[0].name, role: rows[0].role as AdminRole } : null;
+}
+
+// Wie ein Bild verwendet wird: bestimmt, auf welche Grösse es verkleinert wird
+export type ImageRole = "standard" | "galerie" | "vorschau";
+const ROLE_RANK: Record<ImageRole, number> = { vorschau: 0, standard: 1, galerie: 2 };
+
+// Alle Bilder, die in News, Events (Titelbild, Bild- und Galerie-Bausteine) und beim Vorstand verwendet werden.
+// Ein Bild, das mehrfach vorkommt, erscheint einmal, mit der grosszügigsten Verwendung.
+export async function getImageReferences(): Promise<{ url: string; role: ImageRole }[]> {
+  if (!isDbConfigured()) return [];
+  await ensureSchema();
+  const found = new Map<string, ImageRole>();
+  const add = (url: unknown, role: ImageRole) => {
+    if (typeof url !== "string" || !url.trim()) return;
+    const u = url.trim();
+    const cur = found.get(u);
+    if (!cur || ROLE_RANK[role] > ROLE_RANK[cur]) found.set(u, role);
+  };
+  const fromBlocks = (blocks: unknown) => {
+    if (!Array.isArray(blocks)) return;
+    for (const b of blocks as Record<string, any>[]) {
+      if (!b || typeof b !== "object") continue;
+      if (b.type === "image") add(b.url, "standard");
+      if (b.type === "gallery" && Array.isArray(b.images)) {
+        for (const im of b.images as Record<string, any>[]) {
+          add(im?.url, "galerie");
+          add(im?.thumbUrl, "vorschau");
+        }
+      }
+    }
+  };
+  for (const table of ["news", "events"] as const) {
+    const { rows } = table === "news"
+      ? await sql`SELECT image_url, blocks FROM news;`
+      : await sql`SELECT image_url, blocks FROM events;`;
+    for (const r of rows) {
+      add(r.image_url, "standard");
+      fromBlocks(r.blocks);
+    }
+  }
+  const board = await sql`SELECT image_url FROM board_members;`;
+  for (const r of board.rows) add(r.image_url, "standard");
+  return [...found].map(([url, role]) => ({ url, role }));
+}
+
+// Ersetzt eine Bildadresse überall (Titelbilder, Bild- und Galerie-Bausteine, Vorstand). Gibt die Anzahl geänderter Zeilen zurück.
+export async function replaceImageUrl(oldUrl: string, newUrl: string): Promise<number> {
+  await ensureSchema();
+  const oldQ = JSON.stringify(oldUrl); // Adresse so, wie sie im JSON steht (mit Anführungszeichen)
+  const newQ = JSON.stringify(newUrl);
+  const like = `%${oldQ.replace(/[\\%_]/g, "\\$&")}%`;
+  let changed = 0;
+  const n1 = await sql`UPDATE news SET image_url = ${newUrl} WHERE image_url = ${oldUrl};`;
+  const n2 = await sql`
+    UPDATE news SET blocks = replace(blocks::text, ${oldQ}, ${newQ})::jsonb
+    WHERE blocks IS NOT NULL AND blocks::text LIKE ${like};`;
+  const e1 = await sql`UPDATE events SET image_url = ${newUrl} WHERE image_url = ${oldUrl};`;
+  const e2 = await sql`
+    UPDATE events SET blocks = replace(blocks::text, ${oldQ}, ${newQ})::jsonb
+    WHERE blocks IS NOT NULL AND blocks::text LIKE ${like};`;
+  const b1 = await sql`UPDATE board_members SET image_url = ${newUrl} WHERE image_url = ${oldUrl};`;
+  changed = (n1.rowCount ?? 0) + (n2.rowCount ?? 0) + (e1.rowCount ?? 0) + (e2.rowCount ?? 0) + (b1.rowCount ?? 0);
+  if (changed > 0) {
+    revalidateTag(TAGS.news);
+    revalidateTag(TAGS.events);
+    revalidateTag(TAGS.board);
+  }
+  return changed;
 }
 
 // Prüft, ob eine Bildadresse noch irgendwo verwendet wird (News, Events, Vorstand)

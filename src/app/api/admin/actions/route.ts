@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAction, getActions, updateAction, deleteAction, isDbConfigured } from "@/lib/db";
 import type { ActionItem } from "@/lib/types";
+import { logAudit, auditDiff } from "@/lib/audit";
+import { getAuditSnapshot } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +33,7 @@ export async function POST(request: Request) {
       discount: body.discount || "",
       periodLabel: body.periodLabel || "",
     });
+    await logAudit(request, { action: "create", entity: "action", id: action.id, label: action.title });
     return NextResponse.json({ action });
   } catch (e) {
     return NextResponse.json({ error: `Speichern fehlgeschlagen: ${(e as Error).message}` }, { status: 500 });
@@ -43,12 +46,14 @@ export async function PUT(request: Request) {
     if (!body.id) {
       return NextResponse.json({ error: "Keine id angegeben." }, { status: 400 });
     }
+    const snap = await getAuditSnapshot("action", body.id);
     const action = await updateAction(body.id, {
       title: body.title,
       description: body.description || "",
       discount: body.discount || "",
       periodLabel: body.periodLabel || "",
     });
+    await logAudit(request, { action: "update", entity: "action", id: action.id, label: action.title, detail: auditDiff("action", snap, action as unknown as Record<string, unknown>) });
     return NextResponse.json({ action });
   } catch (e) {
     return NextResponse.json({ error: `Speichern fehlgeschlagen: ${(e as Error).message}` }, { status: 500 });
@@ -61,7 +66,9 @@ export async function DELETE(request: Request) {
     if (!id) {
       return NextResponse.json({ error: "Keine id angegeben." }, { status: 400 });
     }
+    const snap = await getAuditSnapshot("action", id);
     await deleteAction(id);
+    if (snap) await logAudit(request, { action: "delete", entity: "action", id, label: String(snap.title) });
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: `Löschen fehlgeschlagen: ${(e as Error).message}` }, { status: 500 });

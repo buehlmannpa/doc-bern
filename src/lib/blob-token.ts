@@ -18,3 +18,23 @@ export function findBlobTokenEntry(): { name: string; value: string } | undefine
 export function findBlobToken(): string | undefined {
   return findBlobTokenEntry()?.value;
 }
+
+// Nur Adressen aus einem Vercel-Blob-Speicher (öffentlich), nie externe Adressen oder Bilder der Website (/logo.png)
+export function isBlobUrl(u: string): boolean {
+  try {
+    const url = new URL(u);
+    return url.protocol === "https:" && url.hostname.endsWith(".public.blob.vercel-storage.com");
+  } catch {
+    return false;
+  }
+}
+
+// Gehört die Adresse zum Speicher, zu dem der Token passt? Der Token enthält die Speicher-Kennung
+// ("vercel_blob_rw_<speicher>_…"), die Adresse beginnt mit derselben Kennung. So löscht oder verändert
+// die Dev-Umgebung nie Bilder im Produktiv-Speicher (und umgekehrt).
+export function blobUrlMatchesToken(u: string, token: string): boolean {
+  if (!isBlobUrl(u)) return false;
+  const storeId = token.split("_")[3];
+  if (!storeId) return false;
+  return new URL(u).hostname.toLowerCase().startsWith(`${storeId.toLowerCase()}.`);
+}

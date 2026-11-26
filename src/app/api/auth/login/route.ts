@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyLogin } from "@/lib/db";
+import { logAudit } from "@/lib/audit";
 import { COOKIE_NAME, makeSessionToken, normalizeUsername } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -27,8 +28,10 @@ export async function POST(request: Request) {
   }
 
   if (!user) {
+    await logAudit(request, { action: "login_failed", entity: "login", label: username, actor: null });
     return NextResponse.json({ error: "Benutzername oder Passwort falsch" }, { status: 401 });
   }
+  await logAudit(request, { action: "login", entity: "login", actor: user.username });
 
   const token = await makeSessionToken(user.username);
   const res = NextResponse.json({ ok: true, user: { username: user.username, name: user.name, role: user.role } });

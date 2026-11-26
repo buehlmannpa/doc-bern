@@ -24,7 +24,7 @@ export default defineConfig({
       name: "smartphone",
       // iPhone-Grösse und Touch, aber mit Chromium (kein WebKit nötig)
       use: { ...devices["iPhone 13"], browserName: "chromium", defaultBrowserType: "chromium" },
-      testMatch: /(public|funktionen)\.spec\.ts/,
+      testMatch: /(public|funktionen|zeitstrahl|oeffnungszeiten)\.spec\.ts/,
     },
   ],
   webServer: {
@@ -38,6 +38,13 @@ export default defineConfig({
       SESSION_SECRET: "test-secret",
       // Bewusst kein Blob-Token: Die Tests sprechen nie mit dem echten Bildspeicher (Uploads sind simuliert)
       BLOB_READ_WRITE_TOKEN: "",
+      // Test-Bildspeicher im Arbeitsspeicher für die Tests der Bild-Verkleinerung (nur hier gesetzt)
+      E2E_FAKE_BLOB: "1",
+      // Protokoll: Aufräumen alter Einträge bei jedem Schreiben (im Betrieb höchstens alle 6 Stunden)
+      AUDIT_PURGE_MIN_INTERVAL_MS: "0",
+      // Öffnungszeiten: Testseite statt der echten Händler-Seite (nur hier gesetzt)
+      E2E_FAKE_HOURS: "1",
+      HOSTETTLER_HOURS_URL: `http://localhost:${PORT}/api/e2e-hours`,
     },
   },
 });

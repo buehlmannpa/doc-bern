@@ -47,22 +47,25 @@ export const hostettlerInfo = {
   email: "bern@hostettler-moto.ch",
   website: "https://www.hostettler-moto.ch/bern/",
   googleMaps: "https://www.google.com/maps/search/?api=1&query=hostettler+moto+ag+Deisswil+Stettlen",
+  // Zuletzt bekannte Zeiten (Stand Winter 2026/27). Die App liest die aktuellen Zeiten von hostettler-moto.ch
+  // (siehe src/lib/hostettler-hours.ts); diese Werte gelten nur, wenn die Seite nicht erreichbar ist.
   hoursShop: [
     { day: "Montag", time: "Geschlossen" },
-    { day: "Dienstag", time: "08:00 – 18:30" },
-    { day: "Mittwoch", time: "08:00 – 18:30" },
-    { day: "Donnerstag", time: "08:00 – 18:30" },
-    { day: "Freitag", time: "08:00 – 18:30" },
-    { day: "Samstag", time: "08:00 – 16:00" },
+    { day: "Dienstag", time: "09:00 – 12:00 · 13:00 – 18:00" },
+    { day: "Mittwoch", time: "09:00 – 12:00 · 13:00 – 18:00" },
+    { day: "Donnerstag", time: "09:00 – 12:00 · 13:00 – 18:00" },
+    { day: "Freitag", time: "09:00 – 12:00 · 13:00 – 18:00" },
+    { day: "Samstag", time: "09:00 – 15:00" },
     { day: "Sonntag", time: "Geschlossen" },
   ],
+  // Werkstatt: Annahme / Abholung
   hoursWorkshop: [
     { day: "Montag", time: "Geschlossen" },
-    { day: "Dienstag", time: "07:30 – 12:00 · 13:00 – 17:30" },
-    { day: "Mittwoch", time: "07:30 – 12:00 · 13:00 – 17:30" },
-    { day: "Donnerstag", time: "07:30 – 12:00 · 13:00 – 17:30" },
-    { day: "Freitag", time: "07:30 – 12:00 · 13:00 – 17:30" },
-    { day: "Samstag", time: "07:30 – 12:00 · 13:00 – 16:00" },
+    { day: "Dienstag", time: "08:00 – 12:00 · 13:00 – 17:00" },
+    { day: "Mittwoch", time: "08:00 – 12:00 · 13:00 – 17:00" },
+    { day: "Donnerstag", time: "08:00 – 12:00 · 13:00 – 17:00" },
+    { day: "Freitag", time: "08:00 – 12:00 · 13:00 – 17:00" },
+    { day: "Samstag", time: "08:00 – 12:00 · 13:00 – 15:00" },
     { day: "Sonntag", time: "Geschlossen" },
   ],
 };
