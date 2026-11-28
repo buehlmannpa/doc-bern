@@ -132,3 +132,16 @@ test.describe("Startseite", () => {
     }
   });
 });
+
+test.describe("Aufgeklapptes Falt-Handy (Breite 768 bis 900)", () => {
+  for (const w of [768, 840, 900]) {
+    test(`Desktop-Ansicht ohne seitliches Scrollen bei ${w}px`, async ({ page }) => {
+      await page.setViewportSize({ width: w, height: 900 });
+      for (const path of ["/", "/events", "/news", "/partners", "/rabatte", "/settings"]) {
+        await page.goto(path);
+        const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+        expect(over, `${path} bei ${w}px`).toBeLessThanOrEqual(0);
+      }
+    });
+  }
+});
