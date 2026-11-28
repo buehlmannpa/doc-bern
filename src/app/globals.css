@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Desktop-Ansicht schon ab 768px (aufgeklappte Falt-Handys, Tablets), nicht erst ab 1024px */
+@theme {
+  --breakpoint-lg: 48rem;
+}
+
 :root {
   --accent: 227, 6, 19;
   --accent-hex: #e30613;
